@@ -141,28 +141,37 @@
                 font-size: 13px;
             }
 
-            .permission-name-list {
-                margin: 0;
-                padding: 10px 14px;
-                list-style: none;
+            .permission-card-grid {
                 display: grid;
                 grid-template-columns: repeat(2, minmax(0, 1fr));
-                gap: 4px 20px;
+                gap: 8px;
+                padding: 12px 14px;
+                margin: 0;
+                background-color: #fafbfc;
             }
 
-            .permission-name-list li {
-                position: relative;
-                font-size: 13px;
+            .permission-mini-card {
+                background: #fff;
+                border: 1px solid #e9ecef;
+                border-left: 3px solid #1372ee;
+                border-radius: 6px;
+                padding: 8px 10px;
+                font-size: 12px;
                 color: #495057;
-                line-height: 1.5;
-                padding: 2px 0 2px 14px;
+                line-height: 1.4;
+                box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+                transition: border-color 0.15s ease, box-shadow 0.15s ease;
             }
 
-            .permission-name-list li::before {
-                content: '•';
-                position: absolute;
-                left: 0;
-                color: #6c757d;
+            .permission-mini-card:hover {
+                border-color: #c5d9f5;
+                box-shadow: 0 2px 6px rgba(19, 114, 238, 0.12);
+            }
+
+            .permission-mini-card span {
+                display: block;
+                word-break: break-word;
+                font-weight: 500;
             }
 
             /* Modal footer */
@@ -194,7 +203,7 @@
                     margin: 10px auto;
                 }
 
-                .permission-name-list {
+                .permission-card-grid {
                     grid-template-columns: 1fr;
                 }
             }

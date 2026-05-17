@@ -36,6 +36,8 @@ return [
         'add purchase-return' => 'create purchase-return',
         'view import-product' => 'import product',
         'create import-product' => 'import product',
+        'view supplier-ledger' => 'view supplier-report',
+        'manage supplier-ledger' => 'view supplier-report',
     ],
 
     'duplicate_canonical_merge' => [

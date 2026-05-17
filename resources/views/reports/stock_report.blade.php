@@ -132,15 +132,21 @@
                                     <li><a class="dropdown-item" href="#" data-value="5">Location</a></li>
                                 </div>
                                 <div class="col-md-6">
-                                    <li><a class="dropdown-item" href="#" data-value="6">Unit Cost</a></li>
-                                    <li><a class="dropdown-item" href="#" data-value="7">Unit Selling Price</a></li>
-                                    <li><a class="dropdown-item" href="#" data-value="8">Paid Qty</a></li>
-                                    <li><a class="dropdown-item" href="#" data-value="9">Free Qty</a></li>
-                                    <li><a class="dropdown-item" href="#" data-value="10">Total Qty</a></li>
-                                    <li><a class="dropdown-item" href="#" data-value="11">Stock Value (Purchase)</a></li>
-                                    <li><a class="dropdown-item" href="#" data-value="12">Stock Value (Sale)</a></li>
-                                    <li><a class="dropdown-item" href="#" data-value="13">Markup Value</a></li>
-                                    <li><a class="dropdown-item" href="#" data-value="14">Expiry Date</a></li>
+                                    @if (!empty($canViewCostData))
+                                        <li><a class="dropdown-item" href="#" data-value="6">Unit Cost</a></li>
+                                    @endif
+                                    <li><a class="dropdown-item" href="#" data-value="{{ !empty($canViewCostData) ? 7 : 6 }}">Unit Selling Price</a></li>
+                                    <li><a class="dropdown-item" href="#" data-value="{{ !empty($canViewCostData) ? 8 : 7 }}">Paid Qty</a></li>
+                                    <li><a class="dropdown-item" href="#" data-value="{{ !empty($canViewCostData) ? 9 : 8 }}">Free Qty</a></li>
+                                    <li><a class="dropdown-item" href="#" data-value="{{ !empty($canViewCostData) ? 10 : 9 }}">Total Qty</a></li>
+                                    @if (!empty($canViewCostData))
+                                        <li><a class="dropdown-item" href="#" data-value="11">Stock Value (Purchase)</a></li>
+                                    @endif
+                                    <li><a class="dropdown-item" href="#" data-value="{{ !empty($canViewCostData) ? 12 : 10 }}">Stock Value (Sale)</a></li>
+                                    @if (!empty($canViewCostData))
+                                        <li><a class="dropdown-item" href="#" data-value="13">Markup Value</a></li>
+                                    @endif
+                                    <li><a class="dropdown-item" href="#" data-value="{{ !empty($canViewCostData) ? 14 : 11 }}">Expiry Date</a></li>
                                 </div>
                             </div>
                         </ul>
@@ -245,6 +251,7 @@
 
             {{-- Summary Cards --}}
             <div class="row mb-3">
+                @if (!empty($canViewCostData))
                 <div class="col-xl-4 col-sm-6 col-12 d-flex">
                     <div class="card bg-info w-100">
                         <div class="card-body">
@@ -256,7 +263,8 @@
                         </div>
                     </div>
                 </div>
-                <div class="col-xl-4 col-sm-6 col-12 d-flex">
+                @endif
+                <div class="{{ !empty($canViewCostData) ? 'col-xl-4' : 'col-xl-12' }} col-sm-6 col-12 d-flex">
                     <div class="card bg-success w-100">
                         <div class="card-body">
                             <div class="text-white">
@@ -267,6 +275,7 @@
                         </div>
                     </div>
                 </div>
+                @if (!empty($canViewCostData))
                 <div class="col-xl-4 col-sm-6 col-12 d-flex">
                     <div class="card bg-warning w-100">
                         <div class="card-body">
@@ -278,6 +287,7 @@
                         </div>
                     </div>
                 </div>
+                @endif
             </div>
         </div>
             {{-- Table Section --}}
@@ -287,20 +297,28 @@
                     <table class="table table-bordered table-striped table-hover" id="stockReportTable">
                         <thead class="table-light">
                             <tr>
+                                @if (!empty($canViewProductHistory))
                                 <th>Action</th>
+                                @endif
                                 <th>SKU</th>
                                 <th>Product</th>
                                 <th>Batch No</th>
                                 <th>Category</th>
                                 <th>Location</th>
+                                @if (!empty($canViewCostData))
                                 <th>Unit Cost</th>
+                                @endif
                                 <th>Unit Selling Price</th>
                                 <th>Paid Qty</th>
                                 <th>Free Qty</th>
                                 <th>Total Qty</th>
+                                @if (!empty($canViewCostData))
                                 <th>Stock Value (Purchase)</th>
+                                @endif
                                 <th>Stock Value (Sale)</th>
+                                @if (!empty($canViewCostData))
                                 <th>Markup Value</th>
+                                @endif
                                 <th>Expiry Date</th>
                             </tr>
                         </thead>
@@ -338,6 +356,9 @@
 
     <script>
         $(document).ready(function() {
+            const canViewCostData = @json(!empty($canViewCostData));
+            const canViewProductHistory = @json(!empty($canViewProductHistory));
+
             // Get filter values
             function getFilters() {
                 return {
@@ -357,15 +378,20 @@
                 "ajax": {
                     "url": "{{ route('stock.report') }}",
                     "type": "GET",
+                    "headers": {
+                        "X-Requested-With": "XMLHttpRequest"
+                    },
+                    "dataSrc": "data",
                     "data": function(d) {
                         return $.extend({}, d, getFilters());
                     }
                 },
                 "columnDefs": [
                     // Default-hide less important columns for daily stock checking
-                    { "targets": [4, 5], "visible": false } // Category, Location
+                    { "targets": [canViewProductHistory ? 4 : 3, canViewProductHistory ? 5 : 4], "visible": false }
                 ],
                 "columns": [
+                    @if (!empty($canViewProductHistory))
                     {
                         "data": null,
                         "orderable": false,
@@ -382,6 +408,7 @@
                             </div>`;
                         }
                     },
+                    @endif
                     { "data": "sku" },
                     {
                         "data": "product_name",
@@ -397,12 +424,14 @@
                     },
                     { "data": "category" },
                     { "data": "location" },
+                    @if (!empty($canViewCostData))
                     {
                         "data": "unit_cost",
                         "render": function(data) {
                             return 'Rs. ' + parseFloat(data).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
                         }
                     },
+                    @endif
                     {
                         "data": "unit_selling_price",
                         "render": function(data) {
@@ -418,6 +447,7 @@
                     },
                     {
                         "data": "free_qty",
+                        "name": "free_qty",
                         "className": "text-center",
                         "render": function(data) {
                             return '<strong>' + parseFloat(data).toFixed(2) + '</strong>';
@@ -430,6 +460,7 @@
                             return '<strong>' + parseFloat(data).toFixed(2) + '</strong>';
                         }
                     },
+                    @if (!empty($canViewCostData))
                     {
                         "data": "stock_value_purchase",
                         "className": "text-end",
@@ -437,6 +468,7 @@
                             return 'Rs. ' + parseFloat(data).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
                         }
                     },
+                    @endif
                     {
                         "data": "stock_value_sale",
                         "className": "text-end",
@@ -448,6 +480,7 @@
                             }                            return 'Rs. ' + parseFloat(data).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
                         }
                     },
+                    @if (!empty($canViewCostData))
                     {
                         "data": "potential_profit",
                         "className": "text-end",
@@ -460,6 +493,7 @@
                             return '<strong class="' + colorClass + '">Rs. ' + value.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</strong>';
                         }
                     },
+                    @endif
                     {
                         "data": "expiry_date",
                         "className": "text-center",
@@ -487,7 +521,7 @@
                 ],
                 "pageLength": 10,
                 "lengthMenu": [[10, 25, 50, 100, -1], [10, 25, 50, 100, "All"]],
-                "order": [[1, 'asc']],
+                "order": [[{{ !empty($canViewProductHistory) ? 1 : 0 }}, 'asc']],
                 "dom": '<"dt-top"B><"dt-controls"<"dt-length"l><"dt-search"f>>rtip',
                 "buttons": [
                     {
@@ -646,8 +680,7 @@
             // Permission-gated visibility: hide Free Qty if not allowed
             const canUseFreeQty = @json($canUseFreeQty ?? false);
             if (!canUseFreeQty) {
-                // column index 9 is Free Qty (0-based incl Action)
-                table.column(9).visible(false);
+                table.column('free_qty:name').visible(false);
                 updateDropdownHighlights();
             }
         });

@@ -94,6 +94,8 @@ class SaleController extends Controller
         $this->userAccessService           = app(UserAccessService::class);
 
         $this->middleware('permission:view all sales|view own sales', ['only' => ['listSale', 'index', 'show', 'getDataTableSales', 'salesDetails', 'fetchSuspendedSales', 'getSaleByInvoiceNo', 'searchSales']]);
+        $this->middleware('permission:save draft', ['only' => ['draft']]);
+        $this->middleware('permission:create quotation', ['only' => ['quotation']]);
         $this->middleware('permission:create sale',        ['only' => ['storeOrUpdate']]);
         $this->middleware('permission:access pos',         ['only' => ['pos']]);
         $this->middleware('permission:edit sale',          ['only' => ['editSale', 'convertToInvoice', 'updateSaleOrder', 'cancelConvertedInvoice']]);

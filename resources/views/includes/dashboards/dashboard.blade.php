@@ -24,12 +24,14 @@
 
                         <ul class="breadcrumb">
                             <li class="breadcrumb-item"><a href="{{ route('dashboard') }}">Home</a></li>
-                            <li class="breadcrumb-item active">Admin</li>
+                            <li class="breadcrumb-item active">{{ !empty($showAdminDashboard) ? 'Admin' : 'Home' }}</li>
                         </ul>
                     </div>
                 </div>
             </div>
         </div>
+
+        @if (!empty($showAdminDashboard))
         <div class="row d-flex justify-content-end">
 
             <div class="col-md-3">
@@ -317,7 +319,11 @@
                 </div>
             </div>
         </div>
+    @else
+        @include('includes.dashboards.dashboard_staff')
+    @endif
     </div>
+    @if (!empty($showAdminDashboard))
     <style>
         .card-chart {
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
@@ -959,4 +965,5 @@
             });
         });
     </script>
+    @endif
 @endsection

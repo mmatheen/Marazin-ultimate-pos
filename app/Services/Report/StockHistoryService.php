@@ -31,7 +31,7 @@ class StockHistoryService
 
     //  DataTables AJAX response 
 
-    public function getDataForDataTables(Request $request): \Illuminate\Http\JsonResponse
+    public function getDataForDataTables(Request $request, bool $includeCostData = true): \Illuminate\Http\JsonResponse
     {
         $query = DB::table('products as p')
             ->join('batches as b',          'b.product_id',  '=', 'p.id')
@@ -56,32 +56,37 @@ class StockHistoryService
         $this->applyJoinFilters($query, $request);
 
         $rows      = $query->orderBy('p.product_name')->get();
-        $stockData = $rows->map(function ($row) {
+        $stockData = $rows->map(function ($row) use ($includeCostData) {
             $currentStock = (float) $row->current_stock;
             $unitCost     = (float) $row->unit_cost;
             $retailPrice  = (float) $row->retail_price;
             $byPurchase   = $currentStock * $unitCost;
             $bySale       = $currentStock * $retailPrice;
 
-            return [
+            $payload = [
                 'product_id'           => $row->product_id,
                 'sku'                  => $row->sku     ?? 'N/A',
                 'product_name'         => $row->product_name ?? 'Unknown Product',
                 'batch_no'             => $row->batch_no ?? 'N/A',
                 'category'             => $row->category  ?? 'N/A',
                 'location'             => $row->location_name ?? 'Unknown Location',
-                'unit_cost'            => $unitCost,
                 'unit_selling_price'   => $retailPrice,
                 'paid_qty'             => (float) ($row->paid_qty ?? 0),
                 'free_qty'             => (float) ($row->free_qty ?? 0),
                 'current_stock'        => $currentStock,
-                'stock_value_purchase' => $byPurchase,
                 'stock_value_sale'     => $bySale,
-                'potential_profit'     => $retailPrice > 0 ? $bySale - $byPurchase : 0,
                 'expiry_date'          => $row->expiry_date
                     ? \Carbon\Carbon::parse($row->expiry_date)->format('Y-m-d')
                     : null,
             ];
+
+            if ($includeCostData) {
+                $payload['unit_cost'] = $unitCost;
+                $payload['stock_value_purchase'] = $byPurchase;
+                $payload['potential_profit'] = $retailPrice > 0 ? $bySale - $byPurchase : 0;
+            }
+
+            return $payload;
         })->values()->all();
 
         return response()->json(['data' => $stockData]);
@@ -89,24 +94,39 @@ class StockHistoryService
 
     //  Summary (single SQL aggregate) 
 
-    public function calculateSummary(Request $request): array
+    public function calculateSummary(Request $request, bool $includeCostData = true): array
     {
+        $select = [
+            DB::raw('SUM((lb.qty + lb.free_qty) * b.retail_price) AS total_sale'),
+        ];
+
+        if ($includeCostData) {
+            $select[] = DB::raw('SUM((lb.qty + lb.free_qty) * b.unit_cost) AS total_purchase');
+            $select[] = DB::raw('SUM(CASE WHEN b.retail_price > 0
+                              THEN (lb.qty + lb.free_qty) * (b.retail_price - b.unit_cost)
+                              ELSE 0 END) AS total_profit');
+        }
+
         $query = DB::table('products as p')
             ->join('batches as b',           'b.product_id', '=', 'p.id')
             ->join('location_batches as lb',  'lb.batch_id', '=', 'b.id')
-            ->select([
-                DB::raw('SUM((lb.qty + lb.free_qty) * b.unit_cost)    AS total_purchase'),
-                DB::raw('SUM((lb.qty + lb.free_qty) * b.retail_price) AS total_sale'),
-                DB::raw('SUM(CASE WHEN b.retail_price > 0
-                              THEN (lb.qty + lb.free_qty) * (b.retail_price - b.unit_cost)
-                              ELSE 0 END)                             AS total_profit'),
-            ]);
+            ->select($select);
 
         $this->applyJoinFilters($query, $request);
 
         $row        = $query->first();
+        $bySale     = (float) ($row->total_sale ?? 0);
+
+        if (! $includeCostData) {
+            return [
+                'total_stock_by_purchase_price' => 0,
+                'total_stock_by_sale_price'     => $bySale,
+                'total_potential_profit'        => 0,
+                'profit_margin'                 => 0,
+            ];
+        }
+
         $byPurchase = (float) ($row->total_purchase ?? 0);
-        $bySale     = (float) ($row->total_sale     ?? 0);
         $profit     = (float) ($row->total_profit   ?? 0);
 
         return [

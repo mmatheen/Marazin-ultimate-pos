@@ -9,7 +9,7 @@
                 <li>
                     <a href="{{ route('dashboard') }}" class="{{ set_active(['dashboard']) }}">
                         <i class="feather-grid"></i>
-                        <span class="sidebar-text">Admin Dashboard</span>
+                        <span class="sidebar-text">Dashboard</span>
                     </a>
                 </li>
 
@@ -77,7 +77,7 @@
                     </li>
                 @endcanany
 
-                @canany(['create product', 'view product', 'view unit', 'view main-category', 'view sub-category', 'view brand', 'view warranty', 'import product'])
+                @canany(['create product', 'view product', 'view discount', 'print barcodes', 'view unit', 'view main-category', 'view sub-category', 'view brand', 'view warranty', 'import product'])
                     <li class="submenu {{ set_active(['list-product', 'add-product', 'discounts.index', 'import-product', 'barcode-generator', 'unit', 'main-category', 'sub-category', 'brand', 'warranty']) }}">
                         <a href="#">
                             <i class="fas fa-building"></i>
@@ -98,7 +98,7 @@
                                         class="{{ set_active(['discounts.index']) }}">Discounts</a></li>
                             @endcan
 
-                            @can('view product')
+                            @can('print barcodes')
                                 <li><a href="{{ route('barcode.index') }}" class="{{ set_active(['barcode-generator']) }}">
                                     <i class="fas fa-barcode me-1"></i>Barcode Generator</a></li>
                             @endcan
@@ -196,7 +196,7 @@
                     </li>
                 @endcanany
 
-                @canany(['view all sales', 'view own sales', 'create sale', 'access pos', 'view sale-return', 'create sale-return'])
+                @canany(['view all sales', 'view own sales', 'create sale', 'access pos', 'save draft', 'create quotation', 'view sale-order', 'view sale-return', 'create sale-return'])
                     <li class="submenu {{ set_active(['list-sale', 'pos-create', 'add-sale', 'quotation-list', 'draft-list', 'sale-orders-list', 'sale-return/list', 'sale-return/add']) }}">
                         <a href="#">
                             <i class="fas fa-shopping-cart"></i>
@@ -212,10 +212,14 @@
                                 <li><a href="{{ route('list-sale') }}" class="{{ set_active(['list-sale']) }}">All Sales</a></li>
                             @endcanany
 
-                            <li><a href="{{ route('quotation-list') }}"
-                                    class="{{ set_active(['quotation-list']) }}">Quotations</a></li>
+                            @can('create quotation')
+                                <li><a href="{{ route('quotation-list') }}"
+                                        class="{{ set_active(['quotation-list']) }}">Quotations</a></li>
+                            @endcan
 
-                            <li><a href="{{ route('draft-list') }}" class="{{ set_active(['draft-list']) }}">Drafts</a></li>
+                            @can('save draft')
+                                <li><a href="{{ route('draft-list') }}" class="{{ set_active(['draft-list']) }}">Drafts</a></li>
+                            @endcan
 
                             @can('view sale-order')
                                 <li><a href="{{ route('sale-orders-list') }}" class="{{ set_active(['sale-orders-list']) }}">Sale Orders</a></li>
@@ -239,7 +243,7 @@
                     </li>
                 @endcanany
 
-                @canany(['bulk sale payment', 'bulk purchase payment', 'view cheque-management', 'view expense'])
+                @canany(['bulk sale payment', 'bulk purchase payment', 'view cheque-management', 'view expense', 'view customer-report', 'view supplier-report'])
                     <li class="submenu {{ set_active(['add-sale-bulk-payments', 'add-purchase-bulk-payments', 'manage-bulk-payments', 'cheque-management', 'account-ledger', 'unified-ledger', 'expense-list', 'expense-create', 'expense-edit', 'expense-parent-catergory', 'sub-expense-category']) }}">
                         <a href="#">
                             <i class="fas fa-wallet"></i>
@@ -248,7 +252,7 @@
                         </a>
                         <ul>
                             {{-- Account Ledger --}}
-                            @canany(['view customer', 'view supplier'])
+                            @canany(['view customer-report', 'view supplier-report'])
                                 <li><a href="{{ route('account.ledger') }}" class="{{ set_active(['account-ledger', 'unified-ledger']) }}">
                                     <i class="fas fa-book"></i> Account Ledger</a></li>
                             @endcanany
@@ -348,7 +352,7 @@
                     </li>
                 @endcanany
 
-                @canany(['view sales-rep', 'view routes', 'assign routes'])
+                @canany(['view sales-rep', 'view routes', 'assign routes', 'view city', 'assign cities to route', 'manage sales targets'])
                 <li class="submenu {{ set_active(['sales-rep/routes', 'sales-rep/cities', 'sales-rep/route-cities', 'sales-rep/sales-reps', 'sales-rep/targets', 'sales-rep/vehicle-locations']) }}">
                     <a href="#">
                         <i class="fas fa-user-tie"></i>
@@ -362,12 +366,12 @@
                                 class="{{ set_active(['sales-rep/routes']) }}">Routes</a></li>
                         @endcan
 
-                        @can('view routes')
+                        @can('view city')
                         <li><a href="{{ route('cities.create') }}"
                                 class="{{ set_active(['sales-rep/cities']) }}">Cities</a></li>
                         @endcan
 
-                        @can('view routes')
+                        @can('assign cities to route')
                         <li><a href="{{ route('route-cities.create') }}"
                                 class="{{ set_active(['sales-rep/route-cities']) }}">Route Cities</a></li>
                         @endcan
@@ -385,7 +389,7 @@
                 </li>
                 @endcanany
 
-                @canany(['view daily-report', 'view sales-report', 'view purchase-report', 'view stock-report', 'view profit-loss-report', 'view payment-report'])
+                @canany(['view daily-report', 'view stock-report', 'view profit-loss-report', 'view payment-report', 'view customer-report', 'view supplier-report', 'export reports'])
                     <li class="menu-title">
                         <span>Reports</span>
                     </li>
@@ -402,7 +406,9 @@
 
                             @can('view stock-report')
                                 <li><a href="{{ route('stock.report') }}" class="{{ set_active(['stock-report']) }}">Stock Report</a></li>
-                                <li><a href="{{ route('backorder.report') }}" class="{{ set_active(['backorder.report']) }}">Stock Shortage Report</a></li>
+                                @if ((bool) (\App\Models\Setting::value('enable_backorders') ?? 0))
+                                    <li><a href="{{ route('backorder.report') }}" class="{{ set_active(['backorder.report']) }}">Stock Shortage Report</a></li>
+                                @endif
                             @endcan
 
                             @can('view profit-loss-report')
@@ -413,9 +419,13 @@
                                 <li><a href="{{ route('payment.report') }}" class="{{ set_active(['payment.report']) }}">Payments</a></li>
                             @endcan
 
-                            <li><a href="{{ route('due.report') }}" class="{{ set_active(['due-report']) }}">Due Report</a></li>
+                            @canany(['view customer-report', 'view supplier-report'])
+                                <li><a href="{{ route('due.report') }}" class="{{ set_active(['due-report']) }}">Due Report</a></li>
+                            @endcanany
 
-                            <li><a href="{{ route('activity-log.activityLogPage') }}" class="{{ set_active(['activity-log']) }}">Activity Log</a></li>
+                            @can('export reports')
+                                <li><a href="{{ route('activity-log.activityLogPage') }}" class="{{ set_active(['activity-log']) }}">Activity Log</a></li>
+                            @endcan
                         </ul>
                     </li>
                 @endcanany

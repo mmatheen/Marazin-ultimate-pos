@@ -17,7 +17,7 @@ class SettingController extends Controller
         $this->middleware('permission:view settings', ['only' => ['index']]);
         $this->middleware('permission:edit business-settings', ['only' => ['update', 'updatePriceValidation', 'updateFreeQty']]);
         $this->middleware('permission:edit backorder-settings', ['only' => ['updateBackorders']]);
-        $this->middleware('permission:edit sms-settings', ['only' => ['updateSmsSettings']]);
+        $this->middleware('permission:edit sms-settings', ['only' => ['updateSmsSettings', 'updateEnableSms']]);
         $this->middleware('permission:sms.send', ['only' => ['sendSms']]);
         $this->middleware('permission:backup database', ['only' => ['backupNow']]);
     }
@@ -133,6 +133,25 @@ class SettingController extends Controller
             'status' => true,
             'message' => 'Backorder setting updated.',
             'data' => ['enable_backorders' => (int) $validated['enable_backorders']],
+        ]);
+    }
+
+    /**
+     * Update only SMS feature toggle (customer opt-in + automated sale SMS).
+     */
+    public function updateEnableSms(Request $request)
+    {
+        $validated = $request->validate([
+            'enable_sms' => 'required|in:0,1',
+        ]);
+        $setting = Setting::first();
+        $setting->update($validated);
+        Cache::forget('active_setting');
+
+        return response()->json([
+            'status' => true,
+            'message' => 'SMS feature setting updated.',
+            'data' => ['enable_sms' => (int) $validated['enable_sms']],
         ]);
     }
 

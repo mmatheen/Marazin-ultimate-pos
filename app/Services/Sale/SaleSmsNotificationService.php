@@ -35,7 +35,7 @@ class SaleSmsNotificationService
 
         $setting = Setting::first();
 
-        if (! $setting) {
+        if (! $setting || ! $setting->enable_sms) {
             return;
         }
 

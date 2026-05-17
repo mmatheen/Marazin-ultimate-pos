@@ -22,7 +22,10 @@
         var csrfToken = $('meta[name="csrf-token"]').attr('content'); //for crf token
 
         // Check if current user is a sales rep (check early) — set from Blade via window.CustomerAjaxBootstrap
-        var isSalesRep = !!(window.CustomerAjaxBootstrap && window.CustomerAjaxBootstrap.isSalesRep);
+        var bootstrap = window.CustomerAjaxBootstrap || {};
+        var isSalesRep = !!bootstrap.isSalesRep;
+        var canViewCity = !!bootstrap.canViewCity;
+        var canManageCustomerSmsOptIn = !!bootstrap.canManageCustomerSmsOptIn;
 
         // Initialize DataTable
         try {
@@ -43,7 +46,9 @@
             $('#customer-id').html('<option value="">Please Select</option>');
         }
 
-        fetchCities();
+        if (canViewCity && $('#city_search_input').length) {
+            fetchCities();
+        }
 
         // Build validation rules conditionally
         var validationRules = {
@@ -78,8 +83,8 @@
             },
         };
 
-        // Add city validation only for sales reps
-        if (isSalesRep) {
+        // Add city validation only for sales reps with city view permission
+        if (isSalesRep && canViewCity) {
             validationRules.city_id = {
                 required: true,
             };
@@ -159,8 +164,8 @@
 
             $('#edit_credit_limit').val('0');
 
-            // Show helpful message for non-sales rep users
-            if (!isSalesRep) {
+            // Show helpful message for non-sales rep users with city view permission
+            if (!isSalesRep && canViewCity) {
                 // Add a subtle info banner at the top of the modal
                 if ($('.city-info-banner').length === 0) {
                     const infoBanner = `
@@ -227,41 +232,68 @@
                             const viewBase = r.viewContactBase || '';
                             let actions = '<div class="btn-group" role="group">';
 
+                            const salesReportItems = [];
+                            if (b.canViewAllSales) {
+                                salesReportItems.push(`
+                                        <li><a class="dropdown-item" href="${listSale}?customer_id=${row.id}" target="_blank">
+                                            <i class="feather-list text-success"></i> All Sales
+                                        </a></li>`);
+                            }
+                            if (b.canViewDueReport) {
+                                salesReportItems.push(`
+                                        <li><a class="dropdown-item" href="${dueReport}?report_type=customer&customer_id=${row.id}" target="_blank">
+                                            <i class="feather-alert-circle text-danger"></i> Due Sales
+                                        </a></li>`);
+                            }
+
+                            const customerActionItems = [];
+                            if (b.canViewContactDetail) {
+                                customerActionItems.push(`
+                                            <li><a class="dropdown-item" href="${viewBase}/${row.id}/${contactSlug}" target="_blank" data-customer-view-contact-link="1">
+                                                <i class="feather-user text-success"></i> View Contact
+                                            </a></li>`);
+                            }
+                            if (b.canViewLedger) {
+                                customerActionItems.push(`
+                                            <li><a class="dropdown-item ledger_btn" href="#" data-id="${row.id}">
+                                                <i class="feather-book-open text-primary"></i> Ledger
+                                            </a></li>`);
+                            }
+                            if (b.canEditCustomer) {
+                                customerActionItems.push(`
+                                            <li><a class="dropdown-item edit_btn" href="#" data-id="${row.id}">
+                                                <i class="feather-edit text-info"></i> Edit
+                                            </a></li>`);
+                            }
+                            if (b.canDeleteCustomer) {
+                                customerActionItems.push(`
+                                            <li><a class="dropdown-item delete_btn" href="#" data-id="${row.id}">
+                                                <i class="feather-trash-2 text-danger"></i> Delete
+                                            </a></li>`);
+                            }
+
+                            if (!salesReportItems.length && !customerActionItems.length) {
+                                return '';
+                            }
+
                             actions += `
                                 <div class="dropdown">
                                     <button type="button" class="btn btn-primary btn-sm dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
                                         <i class="feather-settings"></i> Actions
                                     </button>
-                                    <ul class="dropdown-menu">
+                                    <ul class="dropdown-menu">`;
+                            if (salesReportItems.length) {
+                                actions += `
                                         <li><h6 class="dropdown-header">Sales Reports</h6></li>
-                                        <li><a class="dropdown-item" href="${listSale}?customer_id=${row.id}" target="_blank">
-                                            <i class="feather-list text-success"></i> All Sales
-                                        </a></li>
-                                        <li><a class="dropdown-item" href="${dueReport}?report_type=customer&customer_id=${row.id}" target="_blank">
-                                            <i class="feather-alert-circle text-danger"></i> Due Sales
-                                        </a></li>
-                                        <li><hr class="dropdown-divider"></li>
-                                        <li><h6 class="dropdown-header">Customer Actions</h6></li>`;
-                            if (b.canViewCustomer) {
-                                actions += `
-                                            <li><a class="dropdown-item" href="${viewBase}/${row.id}/${contactSlug}" target="_blank" data-customer-view-contact-link="1">
-                                                <i class="feather-user text-success"></i> View Contact
-                                            </a></li>
-                                            <li><a class="dropdown-item ledger_btn" href="#" data-id="${row.id}">
-                                                <i class="feather-book-open text-primary"></i> Ledger
-                                            </a></li>`;
+                                        ${salesReportItems.join('')}`;
                             }
-                            if (b.canEditCustomer) {
+                            if (customerActionItems.length) {
+                                if (salesReportItems.length) {
+                                    actions += `<li><hr class="dropdown-divider"></li>`;
+                                }
                                 actions += `
-                                            <li><a class="dropdown-item edit_btn" href="#" data-id="${row.id}">
-                                                <i class="feather-edit text-info"></i> Edit
-                                            </a></li>`;
-                            }
-                            if (b.canDeleteCustomer) {
-                                actions += `
-                                            <li><a class="dropdown-item delete_btn" href="#" data-id="${row.id}">
-                                                <i class="feather-trash-2 text-danger"></i> Delete
-                                            </a></li>`;
+                                        <li><h6 class="dropdown-header">Customer Actions</h6></li>
+                                        ${customerActionItems.join('')}`;
                             }
                             actions += `
                                     </ul>
@@ -802,16 +834,19 @@
                         $('#edit_credit_limit').val(
                             cl === null || cl === undefined || cl === '' ? '0' : cl
                         );
-                        // Set city value using custom function
-                        const cityId = response.customer.city_id || '';
-                        const cityName = response.customer.city_name || '';
-                        if (window.setCityValue) {
-                            window.setCityValue(cityId, cityName);
+                        if (canViewCity) {
+                            const cityId = response.customer.city_id || '';
+                            const cityName = response.customer.city_name || '';
+                            if (window.setCityValue) {
+                                window.setCityValue(cityId, cityName);
+                            }
+                        }
+                        if (canManageCustomerSmsOptIn) {
+                            $('#edit_allow_sms').prop('checked', !!response.customer.allow_sms);
                         }
 
                         $('#edit_customer_type').val(response.customer.customer_type || '')
                             .trigger('change');
-                        $('#edit_allow_sms').prop('checked', !!response.customer.allow_sms);
 
                         // Show modal
                         $('#addAndEditCustomerModal').modal('show');
@@ -843,6 +878,12 @@
             }
 
             let formData = new FormData(this);
+            if (!canViewCity) {
+                formData.delete('city_id');
+            }
+            if (!canManageCustomerSmsOptIn) {
+                formData.delete('allow_sms');
+            }
             let id = $('#edit_id').val(); // for edit
             let url = id ? 'customer-update/' + id : 'customer-store';
             let type = id ? 'post' : 'post';

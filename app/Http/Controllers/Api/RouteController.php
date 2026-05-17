@@ -11,6 +11,14 @@ use Illuminate\Support\Facades\DB;
 
 class RouteController extends Controller
 {
+    public function __construct()
+    {
+        $this->middleware('permission:create route')->only(['store']);
+        $this->middleware('permission:edit route')->only(['update', 'changeStatus']);
+        $this->middleware('permission:delete route')->only(['destroy']);
+        $this->middleware('permission:assign cities to route')->only(['addCities', 'removeCities']);
+    }
+
     /**
      * Display a listing of routes.
      *

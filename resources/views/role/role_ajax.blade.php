@@ -110,11 +110,13 @@
             });
         }
 
-        $(document).on('click', '.edit_btn', function() {
+        $('#role').on('click', '.edit_btn', function() {
             var id = $(this).val();
             $('#modalTitle').text('Edit Role');
             $('#modalButton').text('Update');
-            $('#addAndRoleUpdateForm')[0].reset();
+            if ($('#addAndRoleUpdateForm').length && $('#addAndRoleUpdateForm')[0]) {
+                $('#addAndRoleUpdateForm')[0].reset();
+            }
             $('.text-danger').text('');
             $('#edit_id').val(id);
 
@@ -243,8 +245,8 @@
 
 
 
-        // Delete Role
-        $(document).off('click', '.delete_btn').on('click', '.delete_btn', function() {
+        // Delete Role (scoped to role table only)
+        $('#role').off('click', '.delete_btn').on('click', '.delete_btn', function() {
             var id = $(this).val();
             $('#deleteModal').modal('show');
             $('#deleting_id').val(id);

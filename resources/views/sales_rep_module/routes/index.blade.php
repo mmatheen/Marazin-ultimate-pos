@@ -26,9 +26,11 @@
                         <div class="page-header">
                             <div class="row align-items-center">
                                 <div class="col-auto text-end float-end ms-auto download-grp">
+                                    @can('create route')
                                     <button type="button" class="btn btn-outline-info" id="addRouteButton">
                                         New <i class="fas fa-plus px-2"></i>
                                     </button>
+                                    @endcan
                                 </div>
                             </div>
                         </div>
@@ -42,7 +44,9 @@
                                         <th>Route Name</th>
                                         <th>Description</th>
                                         <th>Status</th>
+                                        @if(auth()->user()->can('edit route') || auth()->user()->can('delete route'))
                                         <th>Action</th>
+                                        @endif
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -55,6 +59,7 @@
         </div>
     </div>
 
+    @canany(['create route', 'edit route'])
     <!-- Add/Edit Modal -->
     <div class="modal fade" id="addAndEditRouteModal" tabindex="-1" role="dialog" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered modal-lg">
@@ -93,7 +98,9 @@
             </div>
         </div>
     </div>
+    @endcanany
 
+    @can('delete route')
     <!-- Delete Modal -->
     <div id="deleteModal" class="modal custom-modal fade" role="dialog">
         <div class="modal-dialog modal-dialog-centered">
@@ -119,15 +126,74 @@
             </div>
         </div>
     </div>
+    @endcan
 
     <script>
+        window.canCreateRoute = @json(auth()->user()->can('create route'));
+        window.canEditRoute = @json(auth()->user()->can('edit route'));
+        window.canDeleteRoute = @json(auth()->user()->can('delete route'));
+
         $(document).ready(function() {
-            // --- Prevent DataTable Reinitialization ---
             if ($.fn.DataTable.isDataTable('#routesTable')) {
                 $('#routesTable').DataTable().destroy();
             }
 
-            // --- Initialize DataTable ---
+            const hasActionColumn = window.canEditRoute || window.canDeleteRoute;
+
+            const columns = [{
+                    data: 'id'
+                },
+                {
+                    data: 'name',
+                    render: function(data) {
+                        return data ? data : '—';
+                    }
+                },
+                {
+                    data: 'description',
+                    render: function(data) {
+                        return data ? data : '—';
+                    }
+                },
+                {
+                    data: 'status',
+                    render: function(data, type, row) {
+                        const color = data === 'active' ? 'success' : 'secondary';
+                        const label = data === 'active' ? 'Active' : 'Inactive';
+
+                        if (window.canEditRoute) {
+                            const nextStatus = data === 'active' ? 'inactive' : 'active';
+                            return `
+                                <button class="btn btn-sm btn-${color} status-toggle-btn"
+                                    data-id="${row.id}"
+                                    data-status="${nextStatus}">
+                                    ${label}
+                                </button>`;
+                        }
+
+                        return `<span class="badge bg-${color}">${label}</span>`;
+                    }
+                },
+            ];
+
+            if (hasActionColumn) {
+                columns.push({
+                    data: null,
+                    orderable: false,
+                    searchable: false,
+                    render: function(data) {
+                        let buttons = '';
+                        if (window.canEditRoute) {
+                            buttons += `<button class='btn btn-sm btn-info editBtn' data-id='${data.id}'>Edit</button> `;
+                        }
+                        if (window.canDeleteRoute) {
+                            buttons += `<button class='btn btn-sm btn-danger deleteBtn' data-id='${data.id}'>Delete</button>`;
+                        }
+                        return buttons.trim() || '—';
+                    }
+                });
+            }
+
             const table = $('#routesTable').DataTable({
                 processing: false,
                 serverSide: false,
@@ -137,7 +203,6 @@
                     dataSrc: "data",
                     error: function(xhr) {
                         console.log('Error loading routes:', xhr);
-                        // Don't show toastr error, let table show "No data available"
                         return [];
                     }
                 },
@@ -147,83 +212,50 @@
                     loadingRecords: "",
                     processing: ""
                 },
-                columns: [{
-                        data: 'id'
-                    },
-                    {
-                        data: 'name',
-                        render: function(data) {
-                            return data ? data : '—';
-                        }
-                    },
-                    {
-                        data: 'description',
-                        render: function(data) {
-                            return data ? data : '—';
-                        }
-                    },
-                    {
-                        data: 'status',
-                        render: function(data, type, row) {
-                            const color = data === 'active' ? 'success' : 'secondary';
-                            const nextStatus = data === 'active' ? 'inactive' : 'active';
-                            const btnText = data === 'active' ? 'Active' : 'Inactive';
-                            return `
-            <button class="btn btn-sm btn-${color} status-toggle-btn" 
-                data-id="${row.id}" 
-                data-status="${nextStatus}">
-                ${btnText}
-            </button>
-        `;
-                        }
-                    },
-
-                    {
-                        data: null,
-                        orderable: false,
-                        searchable: false,
-                        render: function(data) {
-                            return `
-                            <button class='btn btn-sm btn-info editBtn' data-id='${data.id}'>Edit</button>
-                            <button class='btn btn-sm btn-danger deleteBtn' data-id='${data.id}'>Delete</button>
-                        `;
-                        }
-                    }
-                ]
+                columns: columns
             });
 
-            // --- Open Add Modal ---
+            @can('create route')
             $('#addRouteButton').on('click', function() {
                 $('#routeAddUpdateForm')[0].reset();
                 $('#route_id').val('');
                 $('#modalTitle').text('Add Route');
                 $('#saveBtn').text('Save');
                 $('.text-danger').text('');
-                $('input[name="city_ids[]"]').prop('checked', false);
                 $('#addAndEditRouteModal').modal('show');
             });
+            @endcan
 
-            // --- Save or Update Route ---
+            @canany(['create route', 'edit route'])
             $('#routeAddUpdateForm').on('submit', function(e) {
                 e.preventDefault();
 
                 const id = $('#route_id').val();
+                if (!id && !window.canCreateRoute) {
+                    toastr.error('You do not have permission to create routes.');
+                    return;
+                }
+                if (id && !window.canEditRoute) {
+                    toastr.error('You do not have permission to edit routes.');
+                    return;
+                }
+
                 const url = id ? `/api/routes/${id}` : `/api/routes`;
                 const method = id ? 'PUT' : 'POST';
-
-
 
                 const formData = {
                     name: $('#route_name').val(),
                     description: $('#route_description').val(),
                     status: $('#route_status').val(),
-
                 };
 
                 $.ajax({
                     url: url,
                     method: method,
                     data: formData,
+                    headers: {
+                        'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                    },
                     success: function(response) {
                         $('#addAndEditRouteModal').modal('hide');
                         table.ajax.reload();
@@ -232,55 +264,75 @@
                     error: function(xhr) {
                         const errors = xhr.responseJSON?.errors || {};
                         const message = xhr.responseJSON?.message || 'An error occurred.';
-
                         $('#name_error').text(errors.name || '');
-
                         toastr.error(message);
                     }
                 });
             });
+            @endcanany
 
-            // --- Edit Route ---
+            @can('edit route')
             $('#routesTable').on('click', '.editBtn', function() {
                 const id = $(this).data('id');
 
-                setTimeout(() => {
-                    $.get(`/api/routes/${id}`, function(response) {
-                        if (response.status === true && response.data) {
-                            const data = response.data;
-
-                            $('#route_id').val(data.id);
-                            $('#route_name').val(data.name || '');
-
-                            $('#modalTitle').text('Edit Route');
-                            $('#saveBtn').text('Update');
-                            $('#addAndEditRouteModal').modal('show');
-
-                            // Clear previous errors
-                            $('.text-danger').text('');
-                        } else {
-                            toastr.error('Failed to load route data.');
-                        }
-                    }).fail(function() {
-                        toastr.error('Route not found or server error.');
-                    });
-                }, 500);
+                $.get(`/api/routes/${id}`, function(response) {
+                    if (response.status === true && response.data) {
+                        const data = response.data;
+                        $('#route_id').val(data.id);
+                        $('#route_name').val(data.name || '');
+                        $('#route_description').val(data.description || '');
+                        $('#route_status').val(data.status || 'active');
+                        $('#modalTitle').text('Edit Route');
+                        $('#saveBtn').text('Update');
+                        $('#addAndEditRouteModal').modal('show');
+                        $('.text-danger').text('');
+                    } else {
+                        toastr.error('Failed to load route data.');
+                    }
+                }).fail(function() {
+                    toastr.error('Route not found or server error.');
+                });
             });
 
-            // --- Open Delete Modal ---
+            $('#routesTable').on('click', '.status-toggle-btn', function() {
+                const id = $(this).data('id');
+                const newStatus = $(this).data('status');
+
+                $.ajax({
+                    url: `/api/routes/${id}/status`,
+                    method: 'PUT',
+                    data: { status: newStatus },
+                    headers: {
+                        'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                    },
+                    success: function(response) {
+                        toastr.success(response.message || 'Status updated successfully.');
+                        table.ajax.reload(null, false);
+                    },
+                    error: function(xhr) {
+                        const message = xhr.responseJSON?.message || 'Failed to update status.';
+                        toastr.error(message);
+                    }
+                });
+            });
+            @endcan
+
+            @can('delete route')
             $('#routesTable').on('click', '.deleteBtn', function() {
                 const id = $(this).data('id');
                 $('#delete_route_id').val(id);
                 $('#deleteModal').modal('show');
             });
 
-            // --- Confirm Delete ---
             $('.confirm-delete-btn').on('click', function() {
                 const id = $('#delete_route_id').val();
 
                 $.ajax({
                     url: `/api/routes/${id}`,
                     method: 'DELETE',
+                    headers: {
+                        'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                    },
                     success: function(response) {
                         $('#deleteModal').modal('hide');
                         table.ajax.reload();
@@ -293,30 +345,8 @@
                     }
                 });
             });
-
-            // --- Toggle Status ---
-            $('#routesTable').on('click', '.status-toggle-btn', function() {
-                const id = $(this).data('id');
-                const newStatus = $(this).data('status');
-
-                $.ajax({
-                    url: `/api/routes/${id}/status`,
-                    method: 'PUT',
-                    data: {
-                        status: newStatus
-                    },
-                    success: function(response) {
-                        toastr.success(response.message || 'Status updated successfully.');
-                        $('#routesTable').DataTable().ajax.reload(null,
-                        false); // reload without resetting page
-                    },
-                    error: function(xhr) {
-                        const message = xhr.responseJSON?.message || 'Failed to update status.';
-                        toastr.error(message);
-                    }
-                });
-            });
-
+            @endcan
         });
     </script>
 @endsection
+

@@ -17,6 +17,7 @@ use App\Exports\CustomerExport;
 use App\Exports\CustomerTemplateExport;
 use App\Imports\CustomerImport;
 use App\Services\Customer\CustomerCrudService;
+use App\Services\Sms\CustomerSmsOptInPolicy;
 use App\Services\Customer\CustomerListingService;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Helpers\BalanceHelper;
@@ -36,6 +37,7 @@ class CustomerController extends Controller
         $this->middleware('permission:delete customer', ['only' => ['destroy']]);
         $this->middleware('permission:export customer', ['only' => ['export']]);
         $this->middleware('permission:import customer', ['only' => ['importCustomer', 'importCustomerStore']]);
+        $this->middleware('permission:view customer-report', ['only' => ['viewContact']]);
     }
 
     public function Customer()
@@ -126,7 +128,10 @@ class CustomerController extends Controller
         }
 
         try {
-            $result = $this->customerCrudService->createFromInput($request->all(), true);
+            $result = $this->customerCrudService->createFromInput(
+                $request->all(),
+                CustomerSmsOptInPolicy::canManageOptIn()
+            );
 
             if (isset($result['errors'])) {
                 return response()->json([
@@ -191,7 +196,11 @@ class CustomerController extends Controller
 
         if ($customer) {
             try {
-                $result = $this->customerCrudService->updateFromInput($customer, $request->all(), true);
+                $result = $this->customerCrudService->updateFromInput(
+                    $customer,
+                    $request->all(),
+                    CustomerSmsOptInPolicy::canManageOptIn()
+                );
 
                 if (isset($result['errors'])) {
                     return response()->json([

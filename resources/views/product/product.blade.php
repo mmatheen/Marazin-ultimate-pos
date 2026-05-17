@@ -647,8 +647,14 @@
     </div>
 
     <script>
-        // Set global permission variables - Most efficient Laravel approach
-        window.canEditBatchPrices = {{ Js::from(auth()->user()->can('edit batch prices')) }};
+        @php($productPerms = auth()->user())
+        window.canViewProductDetails = {{ Js::from($productPerms->can('view product details')) }};
+        window.canEditProduct = {{ Js::from($productPerms->can('edit product')) }};
+        window.canDeleteProduct = {{ Js::from($productPerms->can('delete product')) }};
+        window.canManageOpeningStock = {{ Js::from($productPerms->can('manage opening stock')) }};
+        window.canEditBatchPrices = {{ Js::from($productPerms->can('edit batch prices')) }};
+        window.canViewProductHistory = {{ Js::from($productPerms->can('view product history')) }};
+        window.canImeiManagement = {{ Js::from($productPerms->can('imei management')) }};
     </script>
 
     @include('product.product_ajax')

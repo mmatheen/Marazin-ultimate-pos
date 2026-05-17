@@ -130,15 +130,40 @@
 
         // Function to reset form and validation errors
         function resetFormAndValidation() {
-            // Reset the form fields
-            if ($('#addAndUserUpdateForm').length > 0 && $('#addAndUserUpdateForm')[0]) {
-                $('#addAndUserUpdateForm')[0].reset();
+            var $form = $('#addAndUserUpdateForm');
+            if ($form.length > 0 && $form[0]) {
+                $form[0].reset();
             }
-            // Reset the validation messages and states
-            $('#addAndUserUpdateForm').validate().resetForm();
-            $('#addAndUserUpdateForm').find('.is-invalidRed').removeClass('is-invalidRed');
-            $('#addAndUserUpdateForm').find('.is-validGreen').removeClass('is-validGreen');
+            var validator = $form.data('validator');
+            if (validator) {
+                validator.resetForm();
+            }
+            $form.find('.is-invalidRed').removeClass('is-invalidRed');
+            $form.find('.is-validGreen').removeClass('is-validGreen');
         }
+
+        function populateRoleDropdown() {
+            $.ajax({
+                url: '/user-select-box-dropdown',
+                type: 'GET',
+                dataType: 'json',
+                success: function(response) {
+                    if (response.status === 200) {
+                        let dropdown = $('.roleDropdown');
+                        dropdown.empty().append('<option value="">Select Role</option>');
+
+                        $.each(response.roles, function(index, role) {
+                            dropdown.append('<option value="' + role.name + '">' + role.name + '</option>');
+                        });
+                    }
+                },
+                error: function(xhr) {
+                    console.error('Failed to load roles:', xhr.responseJSON?.message || xhr.statusText);
+                }
+            });
+        }
+
+        populateRoleDropdown();
 
         // Clear form and validation errors when the modal is hidden
         $('#addAndEditModal').on('hidden.bs.modal', function() {
@@ -237,12 +262,12 @@
             });
         }
 
-        // Show Edit Modal
-        $(document).on('click', '.edit_btn', function() {
+        // Show Edit Modal (scoped to user table only — avoids conflict with role page)
+        $('#user').on('click', '.edit_btn', function() {
             var id = $(this).val();
             $('#modalTitle').text('Edit User');
             $('#modalButton').text('Update');
-            $('#addAndUserUpdateForm')[0].reset();
+            resetFormAndValidation();
             $('.text-danger').text('');
             $('#edit_id').val(id);
 
@@ -251,26 +276,23 @@
                 type: 'get',
                 success: function(response) {
                     if (response.status == 404) {
-                        toastr.options = {
-                            "closeButton": true,
-                            "positionClass": "toast-top-right"
-                        };
                         toastr.error(response.message, 'Error');
+                    } else if (response.status == 403) {
+                        toastr.error(response.message || 'You do not have permission to edit this user.', 'Access Denied');
                     } else if (response.status == 200) {
-                        // Populate locations first, then set values
                         populateLocationDropdown(function() {
                             $('#edit_full_name').val(response.message.full_name);
                             $('#edit_user_name').val(response.message.user_name);
                             $('#edit_email').val(response.message.email);
                             $('#edit_role_name').val(response.message.role);
-
-                            // For multiple locations select - set after dropdown is populated
-                            $('#edit_location_id').val(response.message.location_ids).trigger(
-                                'change');
-
+                            $('#edit_location_id').val(response.message.location_ids).trigger('change');
                             $('#addAndEditModal').modal('show');
                         });
                     }
+                },
+                error: function(xhr) {
+                    var message = xhr.responseJSON?.message || 'Failed to load user details.';
+                    toastr.error(message, xhr.status === 403 ? 'Access Denied' : 'Error');
                 }
             });
         });
@@ -331,8 +353,8 @@
         });
 
 
-        // Delete user
-        $(document).off('click', '.delete_btn').on('click', '.delete_btn', function() {
+        // Delete user (scoped to user table only)
+        $('#user').off('click', '.delete_btn').on('click', '.delete_btn', function() {
             var id = $(this).val();
             $('#deleteModal').modal('show');
             $('#deleting_id').val(id);

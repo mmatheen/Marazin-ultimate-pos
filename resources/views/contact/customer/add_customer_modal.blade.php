@@ -209,6 +209,7 @@
                                 </div>
                             </div>
 
+                            @can('view city')
                             <div class="col-md-4">
                                 <div class="mb-3">
                                     <label>City
@@ -235,10 +236,12 @@
                                                 </div>
                                             </div>
                                         </div>
+                                        @can('create city')
                                         <button type="button" class="btn btn-outline-info btn-sm mt-0"
                                             id="addCityButton" style="min-width: 40px; height: 38px;">
                                             <i class="fas fa-plus"></i>
                                         </button>
+                                        @endcan
                                     </div>
                                     <span class="text-danger" id="city_id_error"></span>
                                     @if (!auth()->user()->hasRole('Sales Rep'))
@@ -247,6 +250,7 @@
                                     @endif
                                 </div>
                             </div>
+                            @endcan
 
                             <div class="col-md-4">
                                 <div class="mb-3">
@@ -272,6 +276,7 @@
                                 </div>
                             </div>
 
+                            @if (\App\Services\Sms\CustomerSmsOptInPolicy::canManageOptIn())
                             <div class="col-md-4 d-flex align-items-end">
                                 <div class="mb-3 form-check">
                                     <input class="form-check-input" type="checkbox" id="edit_allow_sms"
@@ -282,6 +287,7 @@
                                     <div><small class="text-muted">Only opted-in customers will receive automated SMS.</small></div>
                                 </div>
                             </div>
+                            @endif
 
                             <div class="col-md-12">
                                 <div class="mb-3">
@@ -304,3 +310,7 @@
         </div>
     </div>
 </div>
+
+
+
+

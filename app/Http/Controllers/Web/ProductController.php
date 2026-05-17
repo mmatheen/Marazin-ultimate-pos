@@ -40,7 +40,8 @@ class ProductController extends Controller
         $this->productReadService = $productReadService;
         $this->productStockService = $productStockService;
 
-        $this->middleware('permission:view product', ['only' => ['product', 'getProductDetails', 'getLastProduct', 'getProductsByCategory', 'initialProductDetails', 'getStockHistory', 'getAllProductStocks', 'autocompleteStock', 'checkSkuUniqueness', 'getNotifications', 'markNotificationsAsSeen', 'OpeningStockGetAll', 'getProductLocations', 'getImeis', 'showSubCategoryDetailsUsingByMainCategoryId', 'updatePrice']]);
+        $this->middleware('permission:view product', ['only' => ['product', 'getProductDetails', 'getLastProduct', 'getProductsByCategory', 'initialProductDetails', 'getAllProductStocks', 'autocompleteStock', 'checkSkuUniqueness', 'getNotifications', 'markNotificationsAsSeen', 'OpeningStockGetAll', 'getProductLocations', 'getImeis', 'showSubCategoryDetailsUsingByMainCategoryId', 'updatePrice']]);
+        $this->middleware('permission:view product history', ['only' => ['getStockHistory']]);
         $this->middleware('permission:create product', ['only' => ['addProduct', 'storeOrUpdate', 'quickAdd']]);
         $this->middleware('permission:edit product', ['only' => ['editProduct', 'toggleStatus', 'saveChanges', 'applyDiscount']]);
         $this->middleware('permission:manage opening stock', ['only' => ['showOpeningStock', 'editOpeningStock', 'storeOrUpdateOpeningStock', 'deleteOpeningStock']]);

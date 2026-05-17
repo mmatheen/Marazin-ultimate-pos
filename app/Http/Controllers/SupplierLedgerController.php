@@ -16,8 +16,8 @@ class SupplierLedgerController extends Controller
     public function __construct(UnifiedLedgerService $unifiedLedgerService)
     {
         $this->unifiedLedgerService = $unifiedLedgerService;
-        $this->middleware('permission:view supplier-ledger', ['only' => ['index', 'show', 'getSupplierLedger']]);
-        $this->middleware('permission:manage supplier-ledger', ['only' => ['recalculateBalance', 'validateLedger']]);
+        $this->middleware('permission:view supplier-report', ['only' => ['index', 'show', 'getSupplierLedger']]);
+        $this->middleware('permission:view supplier-report', ['only' => ['recalculateBalance', 'validateLedger']]);
     }
 
     /**

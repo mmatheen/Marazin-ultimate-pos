@@ -817,10 +817,18 @@
                                 @can('edit sale')
                                 <li><button type="button" value="${row.id}" class="edit_btn dropdown-item"><i class="feather-edit text-info"></i> Edit</button></li>
                                 @endcan
+                                @can('delete sale')
                                 <li><button type="button" value="${row.id}" class="delete_btn dropdown-item"><i class="feather-trash-2 text-danger"></i> Delete</button></li>
+                                @endcan
+                                @can('create payment')
                                 <li><button type="button" value="${row.id}" class="add-payment dropdown-item"><i class="feather-dollar-sign text-success"></i> Add Payment</button></li>
+                                @endcan
+                                @can('view payments')
                                 <li><button type="button" value="${row.id}" class="view-payments dropdown-item"><i class="feather-list text-primary"></i> View Payments</button></li>
+                                @endcan
+                                @canany(['view sale-return', 'create sale-return'])
                                 <li><button type="button" value="${row.id}" class="sell-return dropdown-item"><i class="feather-rotate-ccw text-warning"></i> Sell Return</button></li>
+                                @endcanany
                             </ul>
                         </div>`;
                     }

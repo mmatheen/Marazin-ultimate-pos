@@ -17,7 +17,7 @@ class BarcodeController extends Controller
 
     function __construct()
     {
-        $this->middleware('permission:view product', ['only' => ['index']]);
+        $this->middleware('permission:print barcodes', ['only' => ['index', 'searchProducts']]);
         $this->middleware('permission:print barcodes', ['only' => ['generateBarcodes']]);
 
         // Initialize barcode generators once

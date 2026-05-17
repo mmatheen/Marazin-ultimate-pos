@@ -16,17 +16,26 @@ class DashboardController extends Controller
     public function __construct(UserAccessService $userAccessService)
     {
         $this->userAccessService = $userAccessService;
-        $this->middleware('permission:view dashboard', ['only' => ['index', 'getDashboardData']]);
     }
 
 
     public function index()
     {
-        return view('includes.dashboards.dashboard');
+        /** @var User $user */
+        $user = auth()->user();
+        $showAdminDashboard = $this->userAccessService->isSuperAdmin($user);
+
+        return view('includes.dashboards.dashboard', compact('showAdminDashboard'));
     }
 
     public function getDashboardData(Request $request)
     {
+        /** @var User $user */
+        $user = auth()->user();
+        if (! $this->userAccessService->isSuperAdmin($user)) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
         $startDate = $request->query('startDate');
         $endDate = $request->query('endDate');
         $selectedLocationId = $request->query('location_id');

@@ -22,11 +22,13 @@ final class DefaultRoleMatrixBuilder
         ));
 
         $salesRep = require dirname(__DIR__) . '/Data/default_sales_rep_permissions.php';
+        $cashier = require dirname(__DIR__) . '/Data/default_cashier_permissions.php';
 
         return [
             'Master Super Admin' => $allNames,
             'Super Admin' => $superAdminNames,
             'Sales Rep' => $salesRep,
+            'Cashier' => $cashier,
         ];
     }
 }

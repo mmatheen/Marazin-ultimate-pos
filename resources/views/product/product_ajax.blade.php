@@ -1287,10 +1287,42 @@
         const isActive = row.product.is_active === 1 || row.product.is_active === true || row.product
             .is_active === "1";
 
-        // Pass the actual boolean status to the click handler
-        const statusButton = isActive ?
-            `<li><a class="dropdown-item btn-toggle-status" href="#" data-product-id="${row.product.id}" data-status="true"><i class="fas fa-times-circle text-warning"></i> Deactivate</a></li>` :
-            `<li><a class="dropdown-item btn-toggle-status" href="#" data-product-id="${row.product.id}" data-status="false"><i class="fas fa-check-circle text-success"></i> Activate</a></li>`;
+        const menuItems = [];
+
+        if (window.canViewProductDetails) {
+            menuItems.push(`<li><a class="dropdown-item view-product" href="#" data-product-id="${row.product.id}"><i class="fas fa-eye"></i> View</a></li>`);
+        }
+        if (window.canEditProduct) {
+            menuItems.push(`<li><a class="dropdown-item" href="/edit-product/${row.product.id}"><i class="fas fa-edit"></i> Edit</a></li>`);
+        }
+        if (window.canEditBatchPrices) {
+            menuItems.push(`<li><a class="dropdown-item edit-batch-prices" href="#" data-product-id="${row.product.id}"><i class="fas fa-dollar-sign"></i> Edit Batch Prices</a></li>`);
+        }
+        if (window.canEditProduct) {
+            menuItems.push(isActive
+                ? `<li><a class="dropdown-item btn-toggle-status" href="#" data-product-id="${row.product.id}" data-status="true"><i class="fas fa-times-circle text-warning"></i> Deactivate</a></li>`
+                : `<li><a class="dropdown-item btn-toggle-status" href="#" data-product-id="${row.product.id}" data-status="false"><i class="fas fa-check-circle text-success"></i> Activate</a></li>`);
+        }
+        if (window.canManageOpeningStock) {
+            menuItems.push(`<li><a class="dropdown-item" href="/edit-opening-stock/${row.product.id}"><i class="fas fa-plus"></i> Add or Edit Opening Stock</a></li>`);
+            menuItems.push(`<li><a class="dropdown-item delete-opening-stock" href="#" data-product-id="${row.product.id}"><i class="fas fa-minus-circle text-danger"></i> Remove Opening Stock</a></li>`);
+        }
+        if (window.canViewProductHistory) {
+            menuItems.push(`<li><a class="dropdown-item" href="/products/stock-history/${row.product.id}"><i class="fas fa-history"></i> Product Stock History</a></li>`);
+        }
+        if (window.canImeiManagement && row.product.is_imei_or_serial_no === 1) {
+            menuItems.push(`<li><a class="dropdown-item show-imei-modal" href="#" data-product-id="${row.product.id}"><i class="fas fa-barcode"></i> IMEI Entry</a></li>`);
+        }
+        if (window.canDeleteProduct) {
+            if (menuItems.length) {
+                menuItems.push('<li><hr class="dropdown-divider"></li>');
+            }
+            menuItems.push(`<li><a class="dropdown-item text-danger delete-product-dropdown" href="#" data-product-id="${row.product.id}"><i class="fas fa-trash"></i> Delete Product</a></li>`);
+        }
+
+        if (!menuItems.length) {
+            return '<span class="text-muted">—</span>';
+        }
 
         return `
                 <div class="dropdown">
@@ -1298,20 +1330,7 @@
                         Actions
                     </button>
                     <ul class="dropdown-menu" aria-labelledby="actionsDropdown-${row.product.id}">
-                        <li><a class="dropdown-item view-product" href="#" data-product-id="${row.product.id}"><i class="fas fa-eye"></i> View</a></li>
-                        <li><a class="dropdown-item" href="/edit-product/${row.product.id}"><i class="fas fa-edit"></i> Edit</a></li>
-                        ${window.canEditBatchPrices ?
-                            `<li><a class="dropdown-item edit-batch-prices" href="#" data-product-id="${row.product.id}"><i class="fas fa-dollar-sign"></i> Edit Batch Prices</a></li>`
-                            : ''}
-                        ${statusButton}
-                        <li><a class="dropdown-item" href="/edit-opening-stock/${row.product.id}"><i class="fas fa-plus"></i> Add or Edit Opening Stock</a></li>
-                        <li><a class="dropdown-item delete-opening-stock" href="#" data-product-id="${row.product.id}"><i class="fas fa-minus-circle text-danger"></i> Remove Opening Stock</a></li>
-                        <li><a class="dropdown-item" href="/products/stock-history/${row.product.id}"><i class="fas fa-history"></i> Product Stock History</a></li>
-                        ${row.product.is_imei_or_serial_no === 1
-                            ? `<li><a class="dropdown-item show-imei-modal" href="#" data-product-id="${row.product.id}"><i class="fas fa-barcode"></i> IMEI Entry</a></li>`
-                            : ''}
-                        <li><hr class="dropdown-divider"></li>
-                        <li><a class="dropdown-item text-danger delete-product-dropdown" href="#" data-product-id="${row.product.id}"><i class="fas fa-trash"></i> Delete Product</a></li>
+                        ${menuItems.join('')}
                     </ul>
                 </div>
             `;

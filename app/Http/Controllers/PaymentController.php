@@ -66,6 +66,9 @@ class PaymentController extends Controller
         $this->middleware('permission:bulk sale payment', ['only' => ['addSaleBulkPayments', 'submitFlexibleBulkPayment', 'getBulkPaymentsList', 'editBulkPayment', 'updateBulkPayment', 'deleteBulkPayment', 'getBulkPaymentLogs']]);
         $this->middleware('permission:bulk purchase payment', ['only' => ['addPurchaseBulkPayments', 'submitFlexibleBulkPurchasePayment', 'getBulkPaymentsList', 'editBulkPayment', 'updateBulkPayment', 'deleteBulkPayment', 'getBulkPaymentLogs']]);
 
+        $this->middleware('permission:view customer-report', ['only' => ['customerLedger', 'getCustomerLedger']]);
+        $this->middleware('permission:view supplier-report', ['only' => ['supplierLedger', 'getSupplierLedger']]);
+
         // Cheque management methods are accessible to all authenticated users for now
         // Methods: chequeManagement, updateChequeStatus, bulkUpdateChequeStatus, chequeStatusHistory, getFloatingBalance
         // TODO: Add specific cheque management permissions later if needed

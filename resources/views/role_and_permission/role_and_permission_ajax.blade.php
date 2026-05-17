@@ -134,13 +134,13 @@
 
             permissionsHtml += '<section class="permission-group-block">';
             permissionsHtml += '<h6 class="permission-group-title">' + groupName + ' <span>(' + groupPermissions.length + ')</span></h6>';
-            permissionsHtml += '<ul class="permission-name-list">';
+            permissionsHtml += '<div class="permission-card-grid">';
 
             groupPermissions.forEach(function(permissionName) {
-                permissionsHtml += '<li>' + permissionName + '</li>';
+                permissionsHtml += '<div class="permission-mini-card"><span>' + permissionName + '</span></div>';
             });
 
-            permissionsHtml += '</ul></section>';
+            permissionsHtml += '</div></section>';
         });
 
         permissionsHtml += '</div>';

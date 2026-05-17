@@ -17,6 +17,7 @@ class Setting extends Model
         'enable_price_validation',
         'enable_free_qty',
         'enable_backorders',
+        'enable_sms',
         'default_tax_percent',
         'default_selling_price_tax_type',
         'sms_user_id',
@@ -30,6 +31,7 @@ class Setting extends Model
         'enable_price_validation' => 'boolean',
         'enable_free_qty' => 'boolean',
         'enable_backorders' => 'boolean',
+        'enable_sms' => 'boolean',
     ];
 
     // Accessor: Full URL for logo

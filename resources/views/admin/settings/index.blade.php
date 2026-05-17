@@ -415,6 +415,29 @@
             @if(auth()->user()->can('edit sms-settings') || auth()->user()->can('sms.send'))
             <section id="settings-panel-sms" class="settings-panel d-none" role="tabpanel" aria-labelledby="tab-sms" aria-hidden="true" data-settings-panel="sms">
             @can('edit sms-settings')
+            <div class="settings-feature-stack mb-4">
+                <article class="feature-row card settings-surface-card rounded-4 border-0 overflow-hidden mb-0">
+                    <div class="card-body d-flex flex-column flex-sm-row align-items-start gap-3 p-4">
+                        <div class="feature-row__icon d-none d-sm-flex" aria-hidden="true"><i class="fas fa-sms"></i></div>
+                        <div class="flex-grow-1 min-w-0">
+                            <div class="d-flex flex-column flex-sm-row align-items-start justify-content-between gap-3">
+                                <div>
+                                    <div class="feature-row__title">Customer &amp; sale SMS</div>
+                                    <p class="feature-row__meta mb-0">
+                                        <strong>On:</strong> staff with <em>sms.send</em> can set customer opt-in; sale invoices can trigger SMS.
+                                        <strong class="d-inline-block ms-1">Off:</strong> Allow SMS is hidden on customers.
+                                    </p>
+                                </div>
+                                <div class="form-check form-switch feature-switch flex-shrink-0 align-self-sm-center ms-sm-2">
+                                    <input class="form-check-input" type="checkbox" role="switch" name="enable_sms" id="enable_sms"
+                                        data-save-url="{{ route('settings.update-enable-sms') }}"
+                                        {{ old('enable_sms', $setting->enable_sms ?? 0) ? 'checked' : '' }}>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </article>
+            </div>
             <div class="card settings-surface-card rounded-4 border-0 overflow-hidden mb-0">
                 <div class="card-header settings-card-header border-0 py-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
                     <h5 class="mb-0 text-dark">SMS Gateway Settings</h5>
@@ -700,6 +723,23 @@ $('#enable_backorders').on('change', function () {
     });
 });
 
+$('#enable_sms').on('change', function () {
+    var url = $(this).data('save-url');
+    var value = $(this).prop('checked') ? 1 : 0;
+    $.ajax({
+        url: url,
+        type: 'POST',
+        data: { enable_sms: value, _token: $('meta[name="csrf-token"]').attr('content') },
+        success: function (res) {
+            if (res.status) toastr.success(res.message);
+            else toastr.error(res.message || 'Failed.');
+        },
+        error: function (xhr) {
+            toastr.error(xhr.responseJSON?.message || 'Please fix the errors.');
+        }
+    });
+});
+
 $('#smsSettingsForm').on('submit', function (e) {
     e.preventDefault();
 
@@ -760,3 +800,4 @@ $('#smsSendForm').on('submit', function (e) {
 });
 </script>
 @endsection
+

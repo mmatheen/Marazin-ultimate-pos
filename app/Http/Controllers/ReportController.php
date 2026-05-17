@@ -21,9 +21,11 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Gate;
 
+use App\Services\Inventory\BackorderService;
 use App\Services\Report\StockHistoryService;
 use App\Services\Report\DueReportService;
 use App\Services\Report\PaymentReportService;
+use App\Services\User\UserAccessService;
 use Illuminate\Http\Request;
 
 class ReportController extends Controller
@@ -33,19 +35,22 @@ class ReportController extends Controller
     protected StockHistoryService $stockHistoryService;
     protected DueReportService $dueReportService;
     protected PaymentReportService $paymentReportService;
+    protected UserAccessService $userAccessService;
 
     function __construct(
         ProfitLossService $profitLossService,
         BackorderReportService $backorderReportService,
         StockHistoryService $stockHistoryService,
         DueReportService $dueReportService,
-        PaymentReportService $paymentReportService
+        PaymentReportService $paymentReportService,
+        UserAccessService $userAccessService
     ) {
         $this->profitLossService    = $profitLossService;
         $this->backorderReportService = $backorderReportService;
         $this->stockHistoryService  = $stockHistoryService;
         $this->dueReportService     = $dueReportService;
         $this->paymentReportService = $paymentReportService;
+        $this->userAccessService    = $userAccessService;
         $this->middleware('permission:view daily-report', ['only' => ['saleDailyReport', 'dailyReport']]);
         $this->middleware('permission:view sales-report', ['only' => ['salesReport']]);
         $this->middleware('permission:view purchase-report', ['only' => ['purchaseReport']]);
@@ -55,23 +60,31 @@ class ReportController extends Controller
         $this->middleware('permission:view customer-report', ['only' => ['customerReport']]);
         $this->middleware('permission:view supplier-report', ['only' => ['supplierReport']]);
         $this->middleware('permission:export reports', ['only' => ['exportReport', 'profitLossExportPdf', 'profitLossExportExcel', 'profitLossExportCsv', 'dueReportExportPdf', 'dueReportExportExcel', 'dueReportExportCsv']]);
+        $this->middleware('permission:view customer-report|view supplier-report', ['only' => ['dueReport']]);
+        $this->middleware('permission:view customer-report|view supplier-report', ['only' => ['accountLedger', 'unifiedLedger']]);
+        $this->middleware('permission:export reports', ['only' => ['activityLogPage', 'fetchActivityLog']]);
     }
 
     public function stockHistory(Request $request)
     {
+        $canViewCostData = $this->userAccessService->isSuperAdmin(auth()->user());
+
         if ($request->ajax()) {
-            return $this->stockHistoryService->getDataForDataTables($request);
+            return $this->stockHistoryService->getDataForDataTables($request, $canViewCostData);
         }
 
         $filters     = $this->stockHistoryService->getFilters();
-        $summaryData = $this->stockHistoryService->calculateSummary($request);
+        $summaryData = $this->stockHistoryService->calculateSummary($request, $canViewCostData);
         $canUseFreeQty = Gate::allows('use free quantity');
+        $canViewProductHistory = Gate::allows('view product history');
 
-        return view('reports.stock_report', array_merge($filters, compact('summaryData', 'canUseFreeQty')));
+        return view('reports.stock_report', array_merge($filters, compact('summaryData', 'canUseFreeQty', 'canViewCostData', 'canViewProductHistory')));
     }
 
     public function backorderReport(Request $request)
     {
+        abort_unless(app(BackorderService::class)->isEnabled(), 404);
+
         $filters = $this->backorderReportService->getFilters();
         $startDate = $request->start_date ?? Carbon::now()->startOfMonth()->format('Y-m-d');
         $endDate = $request->end_date ?? Carbon::now()->endOfMonth()->format('Y-m-d');
@@ -89,6 +102,8 @@ class ReportController extends Controller
 
     public function backorderReportData(Request $request)
     {
+        abort_unless(app(BackorderService::class)->isEnabled(), 404);
+
         $filters = $this->backorderReportService->getRequestFilters($request);
         $summary = $this->backorderReportService->calculateSummary($request);
         $data = $this->backorderReportService->getDataForDataTables($request);

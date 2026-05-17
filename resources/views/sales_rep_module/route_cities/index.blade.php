@@ -93,9 +93,11 @@
                                     <h4 class="card-title">Routes & Assigned Cities</h4>
                                 </div>
                                 <div class="col-auto text-end float-end ms-auto download-grp">
+                                    @can('assign cities to route')
                                     <button type="button" class="btn btn-primary" id="addAssignmentBtn">
                                         <i class="fas fa-plus"></i> Assign Cities
                                     </button>
+                                    @endcan
                                 </div>
                             </div>
                         </div>
@@ -109,7 +111,9 @@
                                         <th>Cities</th>
                                         <th>City Count</th>
                                         <th>Last Updated</th>
+                                        @can('assign cities to route')
                                         <th>Actions</th>
+                                        @endcan
                                     </tr>
                                 </thead>
                                 <tbody></tbody>
@@ -261,6 +265,8 @@
     </div>
 
     <script>
+        window.canAssignCitiesToRoute = @json(auth()->user()->can('assign cities to route'));
+
         $(document).ready(function() {
             let table;
             let allCities = [];
@@ -297,7 +303,8 @@
                         loadingRecords: "",
                         processing: ""
                     },
-                    columns: [{
+                    columns: (function() {
+                        const cols = [{
                             data: 'route_name',
                             render: (data) => `<strong>${data}</strong>`
                         },
@@ -317,17 +324,22 @@
                         {
                             data: 'updated_at',
                             render: (data) => new Date(data).toLocaleDateString()
-                        },
-                        {
-                            data: null,
-                            orderable: false,
-                            searchable: false,
-                            render: (data) => `
-                        <button class="btn btn-sm btn-outline-info editBtn" data-id="${data.id}"><i class="fas fa-edit"></i></button>
-                        <button class="btn btn-sm btn-outline-danger deleteBtn" data-id="${data.id}"><i class="fas fa-trash"></i></button>
-                    `
+                        }];
+
+                        if (window.canAssignCitiesToRoute) {
+                            cols.push({
+                                data: null,
+                                orderable: false,
+                                searchable: false,
+                                render: (data) => `
+                                    <button class="btn btn-sm btn-outline-info editBtn" data-id="${data.id}"><i class="fas fa-edit"></i></button>
+                                    <button class="btn btn-sm btn-outline-danger deleteBtn" data-id="${data.id}"><i class="fas fa-trash"></i></button>
+                                `
+                            });
                         }
-                    ]
+
+                        return cols;
+                    })()
                 });
             }
 
@@ -567,3 +579,4 @@
         });
     </script>
 @endsection
+

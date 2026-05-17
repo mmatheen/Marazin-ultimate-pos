@@ -75,9 +75,9 @@ if (!function_exists('set_active')) {
 }
 
 // -------------------- Dashboard Route --------------------
-Route::get('/dashboard', function () {
-    return view('includes.dashboards.dashboard');
-})->middleware(['auth', 'verified', 'daily.backup'])->name('dashboard');
+Route::get('/dashboard', [DashboardController::class, 'index'])
+    ->middleware(['auth', 'verified', 'daily.backup'])
+    ->name('dashboard');
 
 // -------------------- Auth Routes --------------------
 require __DIR__ . '/auth.php';
@@ -606,6 +606,7 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/site-settings/update-price-validation', [SettingController::class, 'updatePriceValidation'])->name('settings.update-price-validation');
         Route::post('/site-settings/update-free-qty', [SettingController::class, 'updateFreeQty'])->name('settings.update-free-qty');
         Route::post('/site-settings/update-backorders', [SettingController::class, 'updateBackorders'])->name('settings.update-backorders');
+        Route::post('/site-settings/update-enable-sms', [SettingController::class, 'updateEnableSms'])->name('settings.update-enable-sms');
         Route::post('/site-settings/update-sms-settings', [SettingController::class, 'updateSmsSettings'])->name('settings.update-sms-settings');
         Route::post('/site-settings/send-sms', [SettingController::class, 'sendSms'])->name('settings.send-sms');
         Route::post('/site-settings/backup-now', [SettingController::class, 'backupNow'])->name('settings.backup-now');

@@ -26,9 +26,11 @@
                         <div class="page-header">
                             <div class="row align-items-center">
                                 <div class="col-auto text-end float-end ms-auto download-grp">
+                                    @can('create city')
                                     <button type="button" class="btn btn-outline-info" id="addCityButton">
                                         New <i class="fas fa-plus px-2"></i>
                                     </button>
+                                    @endcan
                                 </div>
                             </div>
                         </div>
@@ -42,7 +44,9 @@
                                         <th>City Name</th>
                                         <th>District</th>
                                         <th>Province</th>
+                                        @if(auth()->user()->can('edit city') || auth()->user()->can('delete city'))
                                         <th>Action</th>
+                                        @endif
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -57,6 +61,7 @@
 
     @include('contact.customer.city_modal')
 
+    @can('delete city')
     <!-- Delete Modal -->
     <div id="deleteModal" class="modal custom-modal fade" role="dialog">
         <div class="modal-dialog modal-dialog-centered">
@@ -82,15 +87,57 @@
             </div>
         </div>
     </div>
+    @endcan
 
     <script>
+        window.canEditCity = @json(auth()->user()->can('edit city'));
+        window.canDeleteCity = @json(auth()->user()->can('delete city'));
+
         $(document).ready(function() {
-            // --- Prevent DataTable Reinitialization ---
             if ($.fn.DataTable.isDataTable('#citiesTable')) {
                 $('#citiesTable').DataTable().destroy();
             }
 
-            // --- Initialize DataTable ---
+            const hasActionColumn = window.canEditCity || window.canDeleteCity;
+
+            const columns = [{
+                    data: 'id'
+                },
+                {
+                    data: 'name'
+                },
+                {
+                    data: 'district',
+                    render: function(data) {
+                        return data ? data : '—';
+                    }
+                },
+                {
+                    data: 'province',
+                    render: function(data) {
+                        return data ? data : '—';
+                    }
+                },
+            ];
+
+            if (hasActionColumn) {
+                columns.push({
+                    data: null,
+                    orderable: false,
+                    searchable: false,
+                    render: function(data) {
+                        let buttons = '';
+                        if (window.canEditCity) {
+                            buttons += `<button class='btn btn-sm btn-info editBtn' data-id='${data.id}'>Edit</button> `;
+                        }
+                        if (window.canDeleteCity) {
+                            buttons += `<button class='btn btn-sm btn-danger deleteBtn' data-id='${data.id}'>Delete</button>`;
+                        }
+                        return buttons.trim() || '—';
+                    }
+                });
+            }
+
             const table = $('#citiesTable').DataTable({
                 processing: false,
                 serverSide: false,
@@ -109,44 +156,14 @@
                     loadingRecords: "",
                     processing: ""
                 },
-                columns: [{
-                        data: 'id'
-                    },
-                    {
-                        data: 'name'
-                    },
-                    {
-                        data: 'district',
-                        render: function(data) {
-                            return data ? data : '—';
-                        }
-                    },
-                    {
-                        data: 'province',
-                        render: function(data) {
-                            return data ? data : '—';
-                        }
-                    },
-                    {
-                        data: null,
-                        orderable: false,
-                        searchable: false,
-                        render: function(data) {
-                            return `
-                            <button class='btn btn-sm btn-info editBtn' data-id='${data.id}'>Edit</button>
-                            <button class='btn btn-sm btn-danger deleteBtn' data-id='${data.id}'>Delete</button>
-                        `;
-                        }
-                    }
-                ]
+                columns: columns
             });
 
-            // --- Edit City ---
+            @can('edit city')
             $('#citiesTable').on('click', '.editBtn', function() {
                 const id = $(this).data('id');
                 $.get(`/api/cities/${id}`, function(response) {
                     if (response.status === true && response.data) {
-                        // Use the global function from cities_ajax
                         if (window.populateCityEditForm) {
                             window.populateCityEditForm(response.data);
                             $('#addAndEditCityModal').modal('show');
@@ -158,21 +175,24 @@
                     toastr.error('City not found or server error.');
                 });
             });
+            @endcan
 
-            // --- Open Delete Modal ---
+            @can('delete city')
             $('#citiesTable').on('click', '.deleteBtn', function() {
                 const id = $(this).data('id');
                 $('#delete_city_id').val(id);
                 $('#deleteModal').modal('show');
             });
 
-            // --- Confirm Delete ---
             $('.confirm-delete-btn').on('click', function() {
                 const id = $('#delete_city_id').val();
 
                 $.ajax({
                     url: `/api/cities/${id}`,
                     method: 'DELETE',
+                    headers: {
+                        'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                    },
                     success: function(response) {
                         $('#deleteModal').modal('hide');
                         table.ajax.reload();
@@ -185,6 +205,7 @@
                     }
                 });
             });
+            @endcan
         });
     </script>
 

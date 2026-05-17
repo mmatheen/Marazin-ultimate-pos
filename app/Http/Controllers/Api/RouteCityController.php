@@ -12,7 +12,11 @@ use Illuminate\Support\Facades\DB;
 
 class RouteCityController extends Controller
 {
-   
+    public function __construct()
+    {
+        $this->middleware('permission:assign cities to route')->only(['store', 'update', 'destroy']);
+    }
+
     public function index()
     {
         try {

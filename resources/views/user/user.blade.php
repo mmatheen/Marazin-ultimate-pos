@@ -95,7 +95,7 @@
                                             <div class="form-group local-forms">
                                                 <label>User Name <span class="login-danger">*</span></label>
                                                 <input class="form-control" id="edit_user_name" name="user_name"
-                                                    type="text" placeholder="Enter Last Name">
+                                                    type="text" placeholder="Enter User Name">
                                                 <span class="text-danger" id="user_name_name_error"></span>
                                             </div>
                                         </div>
@@ -276,5 +276,4 @@
 
     @include('user.user_ajax')
     {{-- @include('location.location_ajax') --}}
-    @include('role.role_ajax')
 @endsection

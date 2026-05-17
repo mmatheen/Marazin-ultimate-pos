@@ -321,6 +321,14 @@ return [
         'assign cities to route'
     ],
 
+    // 13b. City Management
+    '32. city-management' => [
+        'view city',
+        'create city',
+        'edit city',
+        'delete city',
+    ],
+
     // 14. Reports Management
     '33. report-management' => [
         'view daily-report',

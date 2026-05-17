@@ -7,6 +7,11 @@ use Illuminate\Http\Request;
 
 class CityController extends Controller
 {
+    public function __construct()
+    {
+        $this->middleware('permission:view city')->only(['create']);
+    }
+
     /**
      * Display the cities listing page.
      *

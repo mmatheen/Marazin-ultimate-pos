@@ -10,6 +10,7 @@ use App\Models\City;
 use App\Models\CustomerGroup;
 use App\Models\User;
 use App\Services\Customer\CustomerCrudService;
+use App\Services\Sms\CustomerSmsOptInPolicy;
 use App\Services\Customer\CustomerListingService;
 use App\Services\UnifiedLedgerService;
 use App\Helpers\BalanceHelper;
@@ -97,7 +98,10 @@ class CustomerController extends Controller
         }
 
         try {
-            $result = $this->customerCrudService->createFromInput($request->all(), true);
+            $result = $this->customerCrudService->createFromInput(
+                $request->all(),
+                CustomerSmsOptInPolicy::canManageOptIn()
+            );
 
             if (isset($result['errors'])) {
                 return response()->json([
@@ -165,7 +169,7 @@ class CustomerController extends Controller
                 $result = $this->customerCrudService->updateFromInput(
                     $customer,
                     $request->all(),
-                    true,
+                    CustomerSmsOptInPolicy::canManageOptIn(),
                     true,
                     $this->unifiedLedgerService,
                     'Opening balance updated via API'
