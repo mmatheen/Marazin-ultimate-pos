@@ -60,7 +60,7 @@ class RoleAndPermissionController extends Controller
             $allPermissions = $directPermissions->merge($rolePermissions)->unique('id');
         }
 
-        $permissionsData = $allPermissions->groupBy('group_name');
+        $permissionsData = $this->sortPermissionsDataByGroup($allPermissions->groupBy('group_name'));
 
         return view('role_and_permission.role_and_permission', compact('roles', 'permissionsData'));
     }
@@ -81,6 +81,7 @@ class RoleAndPermissionController extends Controller
                     return [
                         'permission_id' => $permission->id,
                         'name' => $permission->name,
+                        'group_name' => $permission->group_name ?? 'Other',
                     ];
                 })->values()->all(),
             ];
@@ -289,7 +290,7 @@ class RoleAndPermissionController extends Controller
         }
 
         // Example grouping by permission type or category (adjust according to your DB structure)
-        $permissionsData = $allPermissions->groupBy('group_name'); // Assuming 'group_name' is a column in the 'permissions' table
+        $permissionsData = $this->sortPermissionsDataByGroup($allPermissions->groupBy('group_name'));
 
         return view('role_and_permission.role_and_permission_edit', [
             'role' => $role,
@@ -512,6 +513,32 @@ class RoleAndPermissionController extends Controller
                 })
             ]
         ]);
+    }
+
+    /**
+     * Sort permission groups by numeric prefix in group_name (e.g. 1., 2., 16.)
+     */
+    private function sortPermissionsDataByGroup($permissionsData)
+    {
+        return $permissionsData->sortKeysUsing(function ($groupA, $groupB) {
+            $orderA = $this->getPermissionGroupSortOrder($groupA);
+            $orderB = $this->getPermissionGroupSortOrder($groupB);
+
+            if ($orderA !== $orderB) {
+                return $orderA <=> $orderB;
+            }
+
+            return strcmp((string) $groupA, (string) $groupB);
+        });
+    }
+
+    private function getPermissionGroupSortOrder(?string $groupName): int
+    {
+        if ($groupName && preg_match('/^(\d+)\./', $groupName, $matches)) {
+            return (int) $matches[1];
+        }
+
+        return 9999;
     }
 
     /**

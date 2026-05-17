@@ -57,122 +57,12 @@
                                         </div>
                                         <hr>
 
+                                        @include('role_and_permission.partials.permissions_assign_search')
+
                                         <div class="col-md-12 mt-3">
-                                            @foreach ($permissionsData as $groupName => $permissions)
-                                                <div class="row mb-3">
-                                                    <div class="col-md-4 mt-1">
-                                                        <p>{{ $groupName }}</p>
-                                                    </div>
-
-                                                    <div class="col-md-3">
-                                                        <div class="form-check">
-                                                            <input class="form-check-input group-select-all" type="checkbox"
-                                                                value="{{ Str::slug($groupName) }}"
-                                                                id="selectGroup{{ Str::slug($groupName) }}">
-                                                            <label class="form-check-label mt-1"
-                                                                for="selectGroup{{ Str::slug($groupName) }}">
-                                                                Select All
-                                                            </label>
-                                                        </div>
-                                                    </div>
-
-                                                    <div class="col-md-5">
-                                                        @php
-                                                            // Find if this group has "own" or "All" permissions
-                                                            $hasOwn = false;
-                                                            $hasAll = false;
-                                                            foreach ($permissions as $permission) {
-                                                                if (
-                                                                    Str::startsWith(
-                                                                        strtolower($permission->name),
-                                                                        'own',
-                                                                    )
-                                                                ) {
-                                                                    $hasOwn = true;
-                                                                }
-                                                                if (
-                                                                    Str::startsWith(
-                                                                        strtolower($permission->name),
-                                                                        'all',
-                                                                    )
-                                                                ) {
-                                                                    $hasAll = true;
-                                                                }
-                                                            }
-                                                        @endphp
-
-                                                        @if ($hasOwn || $hasAll)
-                                                            @foreach ($permissions as $permission)
-                                                                @php
-                                                                    $isOwn = Str::startsWith(
-                                                                        strtolower($permission->name),
-                                                                        'own',
-                                                                    );
-                                                                    $isAll = Str::startsWith(
-                                                                        strtolower($permission->name),
-                                                                        'all',
-                                                                    );
-                                                                    $radioName =
-                                                                        'permission_radio_' . Str::slug($groupName);
-                                                                    $checked = in_array(
-                                                                        $permission->id,
-                                                                        $role->permissions->pluck('id')->toArray(),
-                                                                    );
-                                                                @endphp
-                                                                @if ($isOwn || $isAll)
-                                                                    <div class="col">
-                                                                        <div class="form-check ms-3">
-                                                                            <input class="form-check-input" type="radio"
-                                                                                name="permission_id[]"
-                                                                                value="{{ $permission->id }}"
-                                                                                id="selectPermission{{ $permission->id }}"
-                                                                                data-group-id="{{ Str::slug($groupName) }}"
-                                                                                @if ($checked) checked @endif>
-                                                                            <label class="form-check-label mt-1"
-                                                                                for="selectPermission{{ $permission->id }}">
-                                                                                {{ $permission->name }}
-                                                                            </label>
-                                                                        </div>
-                                                                    </div>
-                                                                @else
-                                                                    <div class="col">
-                                                                        <div class="form-check ms-3">
-                                                                            <input class="form-check-input" type="checkbox"
-                                                                                name="permission_id[]"
-                                                                                value="{{ $permission->id }}"
-                                                                                id="selectPermission{{ $permission->id }}"
-                                                                                data-group-id="{{ Str::slug($groupName) }}"
-                                                                                @if ($checked) checked @endif>
-                                                                            <label class="form-check-label mt-1"
-                                                                                for="selectPermission{{ $permission->id }}">
-                                                                                {{ $permission->name }}
-                                                                            </label>
-                                                                        </div>
-                                                                    </div>
-                                                                @endif
-                                                            @endforeach
-                                                        @else
-                                                            @foreach ($permissions as $permission)
-                                                                <div class="col">
-                                                                    <div class="form-check ms-3">
-                                                                        <input class="form-check-input" type="checkbox"
-                                                                            name="permission_id[]"
-                                                                            value="{{ $permission->id }}"
-                                                                            id="selectPermission{{ $permission->id }}"
-                                                                            data-group-id="{{ Str::slug($groupName) }}"
-                                                                            @if (in_array($permission->id, $role->permissions->pluck('id')->toArray())) checked @endif>
-                                                                        <label class="form-check-label mt-1"
-                                                                            for="selectPermission{{ $permission->id }}">
-                                                                            {{ $permission->name }}
-                                                                        </label>
-                                                                    </div>
-                                                                </div>
-                                                            @endforeach
-                                                        @endif
-                                                    </div>
-                                                </div>
-                                                <hr>
-                                            @endforeach
+                                            @include('role_and_permission.partials.permission_groups_list', [
+                                                'selectedPermissionIds' => $role->permissions->pluck('id')->toArray(),
+                                            ])
                                         </div>
                                     </div>
 
@@ -240,5 +130,7 @@
         }
     </style>
 
+    @include('role_and_permission.partials.permissions_assign_styles')
+    @include('role_and_permission.partials.permissions_assign_filter_script')
     @include('role_and_permission.role_and_permission_ajax')
 @endsection

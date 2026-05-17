@@ -321,17 +321,7 @@ return [
         'assign cities to route'
     ],
 
-    // 14. Vehicle Management
-    '32. vehicle-management' => [
-        'view vehicles',
-        'create vehicle',
-        'edit vehicle',
-        'delete vehicle',
-        'track vehicle',
-        'assign vehicle to location'
-    ],
-
-    // 15. Reports Management
+    // 14. Reports Management
     '33. report-management' => [
         'view daily-report',
         'view sales-report',

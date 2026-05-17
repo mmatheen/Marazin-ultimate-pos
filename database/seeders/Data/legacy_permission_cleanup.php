@@ -42,4 +42,14 @@ return [
         'add product' => 'create product',
         'add sale' => 'create sale',
     ],
+
+    /** Retired permissions — removed from catalog; purged on seed/migrate */
+    'removed_permission_names' => [
+        'view vehicles',
+        'create vehicle',
+        'edit vehicle',
+        'delete vehicle',
+        'track vehicle',
+        'assign vehicle to location',
+    ],
 ];

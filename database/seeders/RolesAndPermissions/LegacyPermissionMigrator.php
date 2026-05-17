@@ -61,6 +61,32 @@ final class LegacyPermissionMigrator
         foreach ($data['duplicate_canonical_merge'] as $oldName => $newName) {
             $this->mergePermissions($oldName, $newName, $command);
         }
+
+        $removedNames = $data['removed_permission_names'] ?? [];
+        if ($removedNames !== []) {
+            $this->removeRetiredPermissions($removedNames, $command);
+        }
+    }
+
+    /**
+     * @param  list<string>  $permissionNames
+     */
+    public function removeRetiredPermissions(array $permissionNames, Command $command): void
+    {
+        $permissionIds = DB::table('permissions')
+            ->where('guard_name', 'web')
+            ->whereIn('name', $permissionNames)
+            ->pluck('id');
+
+        if ($permissionIds->isEmpty()) {
+            return;
+        }
+
+        DB::table('role_has_permissions')->whereIn('permission_id', $permissionIds)->delete();
+        DB::table('model_has_permissions')->whereIn('permission_id', $permissionIds)->delete();
+        $deleted = DB::table('permissions')->whereIn('id', $permissionIds)->delete();
+
+        $command->info("Removed {$deleted} retired permission(s) from database.");
     }
 
     private function migrateOrMergePermissionName(string $oldName, string $newName, Command $command): void
