@@ -23,9 +23,11 @@ class Setting extends Model
         'sms_user_id',
         'sms_api_key',
         'sms_sender_id',
+        'purchase_table_columns',
     ];
 
     protected $casts = [
+        'purchase_table_columns' => 'array',
         'default_tax_percent' => 'float',
         'sms_api_key' => 'encrypted',
         'enable_price_validation' => 'boolean',

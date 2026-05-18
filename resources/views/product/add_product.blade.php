@@ -379,6 +379,7 @@
 
                                             <div class="row">
                                                 <div class="col-md-12">
+                                                    @if($canManageTax ?? false)
                                                     <div class="row g-3 mb-3">
                                                         <div class="col-md-6">
                                                             <div class="form-group local-forms">
@@ -403,6 +404,10 @@
                                                             <small class="text-muted">Select a tax rate to auto-populate the Tax Percent field</small>
                                                         </div>
                                                     </div>
+                                                    @else
+                                                    <input type="hidden" id="edit_tax_percent" name="tax_percent" value="0">
+                                                    <input type="hidden" id="edit_selling_price_tax_type" name="selling_price_tax_type" value="exclusive">
+                                                    @endif
                                                     <div class="table-responsive">
                                                         <table class="table table-bordered">
                                                             <thead class="table-success">
@@ -412,7 +417,9 @@
                                                                     <th scope="col">Whole Sale Price</th>
                                                                     <th scope="col">Retail Price</th>
                                                                     <th scope="col">Max Retail Price</th>
+                                                                    @if($canManageTax ?? false)
                                                                     <th scope="col">Tax Percent</th>
+                                                                    @endif
                                                                 </tr>
                                                             </thead>
                                                             <tbody>
@@ -471,6 +478,7 @@
                                                                         </div>
                                                                     </td>
 
+                                                                    @if($canManageTax ?? false)
                                                                     <td>
                                                                         <div class="form-group">
                                                                             <input type="hidden" id="edit_tax_percent"
@@ -482,10 +490,13 @@
                                                                                 id="tax_percent_error"></span>
                                                                         </div>
                                                                     </td>
+                                                                    @endif
                                                                 </tr>
                                                             </tbody>
                                                         </table>
+                                                        @if($canManageTax ?? false)
                                                         <span class="text-danger" id="selling_price_tax_type_error"></span>
+                                                        @endif
                                                     </div>
                                                 </div>
                                             </div>

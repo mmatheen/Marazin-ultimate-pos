@@ -671,6 +671,15 @@ class UnifiedLedgerService
     public function recordSaleReturn($saleReturn, $createdBy = null)
     {
         $contactId = $this->resolveSaleReturnCustomerId($saleReturn);
+        if ($contactId === 1) {
+            Log::info('Skipping ledger entry for walk-in customer sale return', [
+                'sales_return_id' => $saleReturn->id ?? null,
+                'return_total' => $saleReturn->return_total ?? null,
+            ]);
+
+            return null;
+        }
+
         if ($contactId <= 0) {
             Log::error('recordSaleReturn: cannot post ledger without customer', [
                 'sales_return_id' => $saleReturn->id ?? null,
@@ -737,6 +746,15 @@ class UnifiedLedgerService
      */
     public function recordReturnPayment($payment, $contactType)
     {
+        if ((int) ($payment->customer_id ?? 0) === 1) {
+            Log::info('Skipping ledger entry for walk-in customer return payment', [
+                'payment_id' => $payment->id ?? null,
+                'amount' => $payment->amount ?? null,
+            ]);
+
+            return null;
+        }
+
         return $this->createReturnLedgerEntry(
             $payment,
             $contactType,
@@ -2351,6 +2369,15 @@ class UnifiedLedgerService
      */
     public function updateSaleReturn($saleReturn, $oldReferenceNo = null)
     {
+        $contactId = $this->resolveSaleReturnCustomerId($saleReturn);
+        if ($contactId === 1) {
+            Log::info('Skipping ledger update for walk-in customer sale return', [
+                'sales_return_id' => $saleReturn->id ?? null,
+            ]);
+
+            return null;
+        }
+
         return DB::transaction(function () use ($saleReturn, $oldReferenceNo) {
             // Must match reference used in recordSaleReturn (invoice_number, e.g. SR-0156)
             $referenceNo = $oldReferenceNo

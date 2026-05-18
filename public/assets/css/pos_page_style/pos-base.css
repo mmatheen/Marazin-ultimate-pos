@@ -1,0 +1,2054 @@
+/* POS – shared/base styles (all viewports)
+ * Breakpoints: phone <768px | tablet 768–991px | desktop ≥992px
+ */
+
+#salesRepDisplay {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+}
+
+/* Only show when explicitly marked as visible */
+#salesRepDisplay.sales-rep-visible {
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+}
+
+/* ========== 1. BASE / GLOBAL ========== */
+* {
+    box-sizing: border-box;
+}
+html,
+body {
+    margin: 0;
+    padding: 0;
+    height: 100vh;
+    overflow: hidden !important;
+}
+body {
+    font-family: 'Roboto', sans-serif;
+    font-size: 13px;
+    line-height: 1.4;
+    background-color: #F8F9FA;
+    background-image: radial-gradient(circle, #dee2e6 1.2px, transparent 1.2px);
+    background-size: 14px 14px;
+    overflow-x: hidden;
+    min-height: 100vh;
+}
+.container-fluid {
+    padding-left: 12px;
+    padding-right: 12px;
+    margin-left: auto;
+    margin-right: auto;
+    width: 100%;
+    max-width: 100vw;
+    overflow-x: hidden;
+    height: 100vh;
+    overflow: hidden;
+    padding-bottom: 60px !important;
+}
+
+/* Extra space above bottom-fixed so it doesn't look stuck to card (tablet/desktop) */
+
+@media (min-width: 768px) {
+            .container-fluid {
+                padding-bottom: 100px !important;
+            }
+        }
+
+/* Fix button text wrapping */
+.bottom-fixed .btn {
+    word-break: keep-all;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Ensure cards don't overflow - COMPACT */
+.card {
+    overflow: hidden;
+    word-wrap: break-word;
+}
+
+/* Make all form inputs more compact */
+.form-control, .form-select, input[type="text"], input[type="number"], textarea {
+    height: 32px !important;
+    padding: 4px 8px !important;
+    font-size: 13px !important;
+    line-height: 1.4 !important;
+}
+
+textarea.form-control {
+    height: auto !important;
+    min-height: 40px !important;
+    max-height: 60px !important;
+    padding: 0.35rem 0.5rem !important;
+}
+
+/* Reduce label spacing */
+.bottom-fixed label,
+.bottom-fixed .form-label {
+    margin-bottom: 0.15rem !important;
+    font-size: 0.85rem !important;
+}
+
+/* Reduce space between form groups */
+.bottom-fixed .mb-3,
+.bottom-fixed .mb-2 {
+    margin-bottom: 0.35rem !important;
+}
+
+/* Compact card body padding */
+.card-body {
+    padding: 8px !important;
+}
+
+/* Compact table styling */
+table {
+    font-size: 12px !important;
+}
+
+table th, table td {
+    padding: 4px 6px !important;
+    vertical-align: middle !important;
+}
+
+table th {
+    font-size: 11px !important;
+    font-weight: 600 !important;
+}
+
+.is-invalidRed {
+    border-color: #e61414 !important;
+}
+
+.is-validGreen {
+    border-color: rgb(3, 105, 54) !important;
+}
+
+.toast-error {
+    animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Hide number input arrows in Chrome, Safari, Edge, and Opera */
+.quantity-input::-webkit-outer-spin-button,
+.quantity-input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+/* Hide number input arrows in Firefox */
+.quantity-input {
+    -moz-appearance: textfield;
+}
+
+/* Button Sizes */
+.btn-sm {
+    padding: 8px 12px !important;
+    font-size: 14px !important;
+    border-radius: 5px !important;
+}
+
+/* POS billing: keep remove (trash) button compact and icon‑only */
+#billing-body .remove-btn {
+    padding: 0 !important;
+    width: 28px;
+    height: 28px;
+    min-width: 28px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+    background: transparent !important;
+    color: #ef4444 !important; /* red icon, no big red block */
+    border: none !important;
+    box-shadow: none !important;
+}
+
+#billing-body .remove-btn:hover {
+    color: #b91c1c !important;
+    background: transparent !important;
+}
+
+#billing-body .remove-btn i {
+    font-size: 14px !important;
+    line-height: 1;
+}
+
+/* Sale Notes Specific Overrides */
+#sale-notes-textarea {
+    min-height: 32px !important;
+    max-height: 50px !important;
+    padding: 4px 6px !important;
+    font-size: 12px !important;
+    margin-bottom: 0 !important;
+}
+
+.bottom-fixed .row[style*="padding"] {
+    padding: 4px 8px !important;
+    margin-top: 2px !important;
+}
+
+.bottom-fixed .row {
+    margin: 0;
+    align-items: center;
+    padding: 2px 0;
+    margin-bottom: 4px !important;
+}
+
+.bottom-fixed label[for="sale-notes-textarea"] {
+    font-size: 12px !important;
+    margin-bottom: 2px !important;
+}
+
+/* Override all bottom section inputs to be more compact */
+.bottom-fixed .form-control,
+.bottom-fixed .input-group,
+.bottom-fixed .btn-group {
+    height: 30px !important;
+}
+
+.bottom-fixed label {
+    font-size: 11px !important;
+    margin-bottom: 2px !important;
+}
+
+.bottom-fixed .form-group {
+    margin-bottom: 4px !important;
+}
+
+/* Bottom Fixed Section */
+.bottom-fixed {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    background-color: #fff;
+    box-shadow: 0 -2px 5px rgba(0, 0, 0, 0.1);
+    z-index: 1000;
+    padding: 2px 5px;
+    border-top: 1px solid #ddd;
+}
+
+/* Ensure POS content (including Sale Notes) is always scrollable above the fixed bottom bar */
+.container-fluid.p-1 {
+    padding-bottom: 160px !important;
+}
+
+/* Margin below Total Items / summary so bottom-fixed bar is clearly separate from card (tablet/desktop) */
+
+@media (min-width: 768px) {
+            .card.bg-white.p-2 {
+                margin-bottom: 1rem;
+                padding-bottom: 1.25rem;
+            }
+            .row.align-items-end[style*="border-top: 2px solid #ddd"] {
+                margin-bottom: 1rem;
+            }
+        }
+
+.bottom-fixed .btn {
+    font-size: 12px;
+    font-weight: bold;
+    padding: 3px 8px;
+    border-radius: 4px;
+    margin: 1px;
+}
+
+.bottom-fixed .col-md-5,
+.bottom-fixed .col-md-7 {
+    padding: 0 8px;
+}
+
+.bottom-fixed h4 {
+    font-size: 20px;
+    margin-bottom: 0;
+    font-weight: 700;
+}
+
+.bottom-fixed #total {
+    font-size: 24px;
+    font-weight: 800;
+}
+
+.bottom-fixed #items-count {
+    font-size: 16px;
+    font-weight: 600;
+}
+
+/* Ensure Total Payable section stays on left */
+.bottom-fixed .col-md-5 {
+    justify-content: flex-start !important;
+    gap: 10px !important;
+}
+
+.bottom-fixed .col-md-5 .d-flex {
+    gap: 10px !important;
+}
+
+/* Action buttons: always show full label (override ellipsis) */
+.bottom-fixed .pos-bottom-action-btns .btn {
+    overflow: visible !important;
+    text-overflow: clip !important;
+}
+
+/* Bottom action buttons: even grid layout, no wasted white space when wrapping */
+
+/* ========== Modern POS Footer – clean panel (More | Cancel | Total | Cash/Card/Credit/Multiple) ========== */
+.pos-footer-modern.bottom-fixed {
+    padding: 12px 20px;
+    min-height: 88px;
+    background: #fff;
+    border-top: 1px solid #e5e7eb;
+    box-shadow: 0 -4px 14px rgba(0,0,0,0.06);
+    border-radius: 16px 16px 0 0;
+}
+.pos-footer-modern .pos-footer-inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    max-width: 100%;
+    min-height: 64px;
+}
+.pos-footer-left {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 0;
+}
+.pos-footer-more-btn {
+    background: #f3f4f6 !important;
+    color: #374151 !important;
+    border: 1px solid #e5e7eb !important;
+    padding: 10px 18px !important;
+    font-size: 14px !important;
+    font-weight: 500 !important;
+    border-radius: 10px !important;
+    min-height: 46px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    transition: background 0.15s ease;
+}
+.pos-footer-more-btn:hover {
+    background: #e5e7eb !important;
+    color: #111 !important;
+    border-color: #d1d5db !important;
+}
+.pos-footer-more-btn[aria-expanded="true"],
+.pos-footer-more-dropdown.show .pos-footer-more-btn {
+    background: #e5e7eb !important;
+    border-color: #d1d5db !important;
+}
+.pos-footer-sep {
+    display: inline-block;
+    width: 1px;
+    height: 28px;
+    background: #d1d5db;
+    margin: 0 12px;
+    border-radius: 1px;
+}
+.pos-footer-btn-cancel {
+    background: #fef2f2 !important;
+    color: #dc2626 !important;
+    border: 1px solid #fecaca !important;
+    padding: 10px 18px !important;
+    font-size: 13px !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.04em;
+    border-radius: 10px !important;
+    min-height: 46px;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 8px;
+}
+.pos-footer-btn-cancel:hover {
+    background: #fee2e2 !important;
+    color: #b91c1c !important;
+    border-color: #fca5a5 !important;
+}
+.pos-footer-btn-cancel i {
+    font-size: 16px !important;
+}
+/* Footer "More" dropdown menu */
+.pos-footer-more-dropdown .pos-footer-more-menu {
+    min-width: 220px;
+    padding: 8px;
+    border-radius: 12px;
+    border: 1px solid #e5e7eb;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+    margin-bottom: 8px;
+    z-index: 1050;
+}
+.pos-footer-more-dropdown .dropdown-item {
+    padding: 12px 16px;
+    font-size: 14px;
+    font-weight: 500;
+    border-radius: 8px;
+    transition: background 0.15s ease, color 0.15s ease;
+    display: flex;
+    align-items: center;
+}
+.pos-footer-more-dropdown .dropdown-item:hover,
+.pos-footer-more-dropdown .dropdown-item:focus {
+    background: #eff6ff;
+    color: #1d4ed8;
+}
+.pos-footer-more-dropdown .dropdown-item .fa,
+.pos-footer-more-dropdown .dropdown-item i {
+    width: 1.25em;
+    text-align: center;
+    opacity: 0.9;
+}
+.pos-footer-center {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-width: 0;
+}
+.pos-footer-total-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+}
+.pos-footer-total-label {
+    color: #9ca3af;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+}
+.pos-footer-modern .pos-footer-total-amount {
+    font-size: 28px !important;
+    font-weight: 700 !important;
+    color: #374151 !important;
+    line-height: 1.2;
+}
+.pos-footer-modern .pos-footer-total-amount .pos-footer-currency {
+    font-size: 0.65em;
+    font-weight: 600;
+    color: #6b7280;
+    margin-right: 2px;
+}
+.pos-footer-modern .pos-footer-total-amount .pos-footer-amount-value {
+    font-size: 1em;
+    font-weight: 700;
+    color: #1f2937;
+}
+.pos-footer-items-count {
+    color: #9ca3af;
+    font-size: 12px;
+    margin-top: 2px;
+}
+.pos-footer-right {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+.pos-footer-right .pos-footer-btn {
+    min-width: 100px;
+}
+.pos-footer-btn {
+    min-height: 48px !important;
+    padding: 10px 16px !important;
+    font-size: 14px !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.03em;
+    border-radius: 10px !important;
+    border: none !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 8px;
+    transition: transform 0.12s ease, box-shadow 0.12s ease, filter 0.12s ease;
+}
+.pos-footer-btn:hover {
+    transform: scale(1.02);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+.pos-footer-btn i {
+    font-size: 18px !important;
+}
+.pos-footer-btn-cash {
+    background: #22c55e !important;
+    color: #fff !important;
+}
+.pos-footer-btn-cash:hover {
+    background: #16a34a !important;
+    color: #fff !important;
+}
+.pos-footer-btn-card {
+    background: #3b82f6 !important;
+    color: #fff !important;
+}
+.pos-footer-btn-card:hover {
+    background: #2563eb !important;
+    color: #fff !important;
+}
+.pos-footer-btn-credit {
+    background: #f97316 !important;
+    color: #fff !important;
+}
+.pos-footer-btn-credit:hover {
+    background: #ea580c !important;
+    color: #fff !important;
+}
+.pos-footer-btn-multiple {
+    background: #7c3aed !important;
+    color: #fff !important;
+}
+.pos-footer-btn-multiple:hover {
+    background: #6d28d9 !important;
+    color: #fff !important;
+}
+.pos-footer-hidden-triggers {
+    position: absolute;
+    left: -9999px;
+    width: 0;
+    height: 0;
+    overflow: hidden;
+}
+
+/* POS: advance / credit on bill (row 2, right column) */
+.pos-advance-under-search {
+    background: #f8f9fa !important;
+    border-color: #dee2e6 !important;
+    min-height: 0;
+}
+.pos-advance-under-search .pos-advance-rsinp {
+    flex: 0 0 auto;
+}
+.pos-advance-under-search .pos-advance-rsinp .input-group-text,
+.pos-advance-under-search .pos-advance-amt-input {
+    min-height: 28px !important;
+    height: 28px !important;
+    padding-top: 2px !important;
+    padding-bottom: 2px !important;
+    font-size: 12px !important;
+}
+
+/* Billing header: customer dropdown + search same height (40px = .pos-search-row) — desktop only */
+
+/* Row 2: credit strip + advance strip align to same baseline */
+.pos-header-meta-row > [class*="col-"] {
+    min-width: 0;
+}
+
+.pos-credit-strip-compact {
+    box-sizing: border-box;
+}
+
+/* ========== 2. SALES REP, HEADER, LOCATION, DATE/TIME ========== */
+/* Header card styling */
+.card.bg-white.p-1 {
+    margin-bottom: 0 !important;
+}
+
+/* Desktop header row */
+.row.align-items-center.d-none.d-md-flex {
+    padding: 4px 8px;
+    min-height: 50px;
+    flex-wrap: nowrap !important;
+}
+
+/* Left section - prevent wrapping */
+.col-md-6.d-flex.align-items-center .d-flex.flex-row {
+    flex-wrap: nowrap !important;
+}
+
+/* Location select styling */
+.form-select.location-select-sync {
+    height: 38px;
+    font-size: 12px;
+    padding: 6px 10px;
+    min-width: 160px;
+    max-width: 180px;
+}
+
+/* Date and time buttons */
+#currentDateButton {
+    height: 38px;
+    font-size: 12px !important;
+    padding: 4px 10px !important;
+    white-space: nowrap;
+}
+
+#currentTimeText {
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+/* Keyboard shortcut button */
+#shortcutButton {
+    height: 38px;
+    width: 38px !important;
+    min-width: 38px !important;
+    padding: 0 !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+/* Sales rep badges */
+#salesRepDisplay .badge {
+    font-size: 10px;
+    padding: 4px 8px !important;
+    height: 30px;
+    display: inline-flex;
+    align-items: center;
+    white-space: nowrap;
+}
+
+#salesRepDisplay .btn-sm {
+    height: 30px;
+    padding: 4px 8px !important;
+}
+
+#salesRepDisplay {
+    flex-shrink: 0;
+}
+
+/* Header action buttons alignment - more space between buttons */
+.col-md-6 .d-flex.justify-content-end {
+    gap: 10px !important;
+    flex-wrap: nowrap !important;
+}
+
+.col-md-6 .d-flex.justify-content-end .btn-sm {
+    height: 36px;
+    min-width: 36px;
+    padding: 5px 8px !important;
+    font-size: 12px !important;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+/* Dropdown buttons */
+.dropdown .btn {
+    height: 36px;
+    min-width: 36px;
+}
+
+/* Header buttons: same height, no wrap */
+.row.align-items-center.d-none.d-md-flex .btn {
+    height: 36px !important;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+/* Left section alignment */
+.col-md-6.d-flex.align-items-center {
+    gap: 6px;
+    overflow: visible;
+}
+
+.col-md-6.d-flex.align-items-center .d-flex {
+    gap: 6px !important;
+}
+
+/* Tablet view: better alignment and spacing (768px - 1024px) */
+
+/* Ensure columns don't wrap */
+.col-md-6 {
+    flex-shrink: 0;
+}
+
+
+/* ========== 3. PRODUCT GRID, OFFCANVAS, CATEGORIES/BRANDS/SUBCATEGORIES ========== */
+/* Product card: image on top, then name, SKU, price, add button */
+.product-card {
+    border: 1px solid #e5e7eb;
+    padding: 0;
+    margin-bottom: 6px;
+    background: #fff;
+    border-radius: 10px;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+    transition: box-shadow 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    min-height: 200px;
+}
+
+.product-card:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+    transform: translateY(-2px);
+    border-color: #2563eb;
+}
+
+.product-card-image {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 1;
+    min-height: 120px;
+    max-height: 180px;
+    background: #f3f4f6;
+    overflow: hidden;
+    border-radius: 10px 10px 0 0;
+}
+
+.product-card-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.product-card-stock-badge {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 4px 8px;
+    border-radius: 6px;
+    color: #fff;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+}
+
+.product-card-stock-ok {
+    background: #16a34a;
+}
+
+.product-card-stock-low {
+    background: #ea580c;
+}
+
+.product-card-stock-info {
+    background: #0284c7;
+}
+
+.product-card-body {
+    padding: 10px 10px 12px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    text-align: left;
+    position: relative;
+}
+
+.product-card-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: #1f2937;
+    margin: 0 0 4px 0;
+    line-height: 1.35;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    text-overflow: ellipsis;
+    word-break: break-word;
+}
+
+.product-card-sku {
+    font-size: 11px;
+    color: #6b7280;
+    margin-bottom: 6px;
+}
+
+.product-card-price {
+    font-size: 15px;
+    font-weight: 700;
+    color: #2563eb;
+    margin-top: auto;
+}
+
+.product-card-add-btn {
+    position: absolute;
+    bottom: 10px;
+    right: 10px;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: none;
+    background: #e5e7eb;
+    color: #374151;
+    font-size: 18px;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease;
+    padding: 0;
+}
+
+.product-card-add-btn:hover {
+    background: #2563eb;
+    color: #fff;
+    transform: scale(1.08);
+}
+
+.product-card-add-btn:active {
+    transform: scale(0.96);
+}
+
+/* Product card responsive styles */
+
+/* Responsive grid layout */
+
+/* Offcanvas Styles */
+.offcanvas {
+    background-color: white;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+
+/* Category / Brand / Subcategory filter panels — narrower than default Bootstrap */
+#offcanvasCategory,
+#offcanvasBrand,
+#offcanvasSubcategory {
+    width: min(380px, 32%);
+    max-width: 92vw;
+}
+
+.offcanvas-body {
+    padding: 15px;
+}
+
+/* Plain offcanvas list buttons only — not category card All/Next actions */
+.offcanvas-body > button,
+.offcanvas-body .list-group button {
+    background-color: transparent;
+    color: #007bff;
+    border: 2px solid #007bff;
+    padding: 8px 16px;
+    margin-bottom: 10px;
+    width: 100%;
+    text-align: left;
+    border-radius: 4px;
+    transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+.offcanvas-body > button:hover,
+.offcanvas-body .list-group button:hover {
+    background-color: #007bff;
+    color: #fff;
+}
+
+/* Offcanvas search filter (Categories, Brands, Subcategories) – same height & alignment */
+.offcanvas-body .input-group.input-group-sm {
+    display: flex !important;
+    align-items: stretch !important;
+    height: 38px !important;
+    max-width: 100%;
+    border-radius: 8px;
+    overflow: hidden;
+}
+.offcanvas-body .input-group.input-group-sm .input-group-text,
+.offcanvas-body .input-group.input-group-sm .form-control {
+    height: 100% !important;
+    min-height: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+}
+.offcanvas-body .input-group.input-group-sm .input-group-text {
+    flex-shrink: 0;
+    border-radius: 8px 0 0 8px;
+}
+.offcanvas-body .input-group.input-group-sm .form-control {
+    flex: 1 1 auto;
+    border-radius: 0 8px 8px 0;
+}
+.pos-offcanvas-search {
+    border-radius: 0 8px 8px 0;
+}
+
+/* Category Styles */
+.category-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: center;
+}
+
+/* Shared base styles for category / brand / subcategory tiles */
+.category-card,
+.brand-card,
+.subcategory-card {
+    border: 1px solid #ddd;
+    background-color: #fff;
+    box-shadow: rgba(50, 50, 105, 0.12) 0px 1px 3px 0px,
+                rgba(0, 0, 0, 0.05) 0px 1px 1px 0px;
+    transition: transform 0.2s ease-in-out;
+}
+
+/* Main category cards – normal size */
+.category-card {
+    width: calc(33.33% - 10px);
+    border-radius: 8px;
+    text-align: center;
+    padding: 10px 12px;
+    min-height: 92px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+/* Brand & subcategory – grid, compact (same as each other) */
+.brand-card,
+.subcategory-card {
+    width: calc(33.33% - 10px);
+    border-radius: 6px;
+    text-align: center;
+    padding: 6px 8px;
+    min-height: 48px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.category-card:hover,
+.brand-card:hover,
+.subcategory-card:hover {
+    transform: translateY(-3px);
+}
+
+.category-card h6 {
+    font-size: 14px;
+    margin: 4px 0;
+    line-height: 1.3;
+    color: #333;
+}
+.brand-card h6,
+.subcategory-card h6,
+.subcategory-card .card-title {
+    font-size: 11px;
+    margin: 2px 0;
+    line-height: 1.2;
+    color: #333;
+    align-items: center;
+    justify-content: center;
+}
+
+.category-footer,
+.brand-footer {
+    display: flex;
+    flex-direction: row;
+    align-items: stretch;
+    justify-content: center;
+    margin-top: 8px;
+    gap: 6px;
+    width: 100%;
+}
+
+/* Category card actions — equal width, centered row */
+.category-footer button {
+    flex: 1 1 0;
+    min-width: 0;
+    width: auto !important;
+    max-width: none;
+    margin: 0 !important;
+    padding: 5px 6px !important;
+    border-radius: 5px;
+    font-size: 11px;
+    line-height: 1.2;
+    cursor: pointer;
+    text-align: center !important;
+    white-space: nowrap;
+    transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+/* Green Outline Button (category) */
+.btn-outline-green {
+    background-color: transparent !important;
+    color: #28a745 !important;
+    border: 1px solid #28a745 !important;
+    transition: background-color 0.2s ease, color 0.2s ease !important;
+    padding: 4px 8px !important;
+    font-size: 12px !important;
+    text-align: center !important;
+}
+
+.btn-outline-green:hover {
+    background-color: #28a745 !important;
+    color: white !important;
+}
+
+/* Purple Outline Button (category) */
+.btn-outline-purple {
+    background-color: transparent !important;
+    color: #6f42c1 !important;
+    border: 1px solid #6f42c1 !important;
+    transition: background-color 0.2s ease, color 0.2s ease !important;
+    padding: 4px 8px !important;
+    font-size: 12px !important;
+    text-align: center !important;
+}
+
+.btn-outline-purple:hover {
+    background-color: #6f42c1 !important;
+    color: white !important;
+}
+
+/* Brand card only: center text, reduced height (no buttons) */
+.brand-card {
+    min-height: 48px !important;
+    padding: 6px 10px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    text-align: center !important;
+}
+.brand-card h6 {
+    margin: 0 !important;
+    text-align: center !important;
+    width: 100%;
+    line-height: 1.2;
+}
+
+/* Subcategory card only: center text, reduced height (like brand) */
+.subcategory-card {
+    min-height: 48px !important;
+    padding: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    text-align: center !important;
+}
+.subcategory-card .card-body {
+    padding: 6px 10px !important;
+    width: 100%;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    margin: 0 !important;
+}
+.subcategory-card .card-title {
+    margin: 0 !important;
+    text-align: center !important;
+    width: 100%;
+    font-size: 11px !important;
+    line-height: 1.2;
+}
+#subcategoryContainer .subcategory-card.mb-3 {
+    margin-bottom: 6px !important;
+}
+/* Subcategory grid – same as brand (grid view) */
+.subcategory-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    justify-content: center;
+}
+
+/* Responsive Styles */
+
+/* Mobile category offcanvas — stack title + buttons to prevent overflow */
+
+/* ========== 4. LOADERS, AUTOCOMPLETE (.ui-autocomplete, .ui-menu) ========== */
+/* Full-page and product grid loaders */
+.loader-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    width: 100vw;
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 1;
+    background: rgba(255, 255, 255, 0.8);
+}
+
+/* Product grid loader: only inside product display section, no full-page overlay */
+#posProduct .product-grid-loader-wrap {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    min-height: 200px;
+    width: 100%;
+    padding: 2rem;
+}
+#posProduct .product-grid-loader-wrap .loader-more {
+    flex-shrink: 0;
+}
+
+.loader {
+    --dim: 3rem;
+    width: var(--dim);
+    height: var(--dim);
+    position: relative;
+    animation: spin988 2s linear infinite;
+}
+
+.loader .circle {
+    --color: #333;
+    --dim: 1.2rem;
+    width: var(--dim);
+    height: var(--dim);
+    background-color: var(--color);
+    border-radius: 50%;
+    position: absolute;
+}
+
+.loader .circle:nth-child(1) {
+    top: 0;
+    left: 0;
+}
+
+.loader .circle:nth-child(2) {
+    top: 0;
+    right: 0;
+}
+
+.loader .circle:nth-child(3) {
+    bottom: 0;
+    left: 0;
+}
+
+.loader .circle:nth-child(4) {
+    bottom: 0;
+    right: 0;
+}
+
+/* Loading more products: rotating dots loader */
+.loader-more {
+    --d: 22px;
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    color: #25b09b;
+    box-shadow:
+        calc(1*var(--d))       calc(0*var(--d))       0 0,
+        calc(0.707*var(--d))   calc(0.707*var(--d))  0 1px,
+        calc(0*var(--d))       calc(1*var(--d))      0 2px,
+        calc(-0.707*var(--d))  calc(0.707*var(--d))  0 3px,
+        calc(-1*var(--d))      calc(0*var(--d))      0 4px,
+        calc(-0.707*var(--d))  calc(-0.707*var(--d)) 0 5px,
+        calc(0*var(--d))       calc(-1*var(--d))     0 6px;
+    animation: loader-more-spin 1s infinite steps(8);
+    margin: 0 auto;
+}
+@keyframes loader-more-spin {
+    100% { transform: rotate(1turn); }
+}
+
+@keyframes spin988 {
+    0% {
+        transform: scale(1) rotate(0);
+    }
+
+    20%,
+    25% {
+        transform: scale(1.3) rotate(90deg);
+    }
+
+    45%,
+    50% {
+        transform: scale(1) rotate(180deg);
+    }
+
+    70%,
+    75% {
+        transform: scale(1.3) rotate(270deg);
+    }
+
+    95%,
+    100% {
+        transform: scale(1) rotate(360deg);
+    }
+}
+
+/* Style for the dropdown container (unified base) */
+.ui-autocomplete {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    z-index: 1000;
+    display: none;
+    min-width: 160px;
+    margin: 2px 0 0 0;
+    padding: 0;
+    list-style: none;
+    background-color: #ffffff;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    max-height: 300px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    font-size: 14px;
+}
+
+/* Style for each dropdown item */
+.ui-menu-item {
+    padding: 3px 20px;
+    line-height: 1.5;
+    cursor: pointer;
+}
+
+/* Hover effect for dropdown items */
+.ui-menu-item:hover {
+    background-color: #f1f1f1;
+}
+
+/* Style for the dropdown input */
+.ui-autocomplete-input {
+    margin-bottom: 0;
+    padding: 10px;
+    width: 100%;
+    box-sizing: border-box;
+    border-radius: 4px;
+    border: 1px solid #ccc;
+}
+
+.card-body::-webkit-scrollbar {
+    width: 8px;
+}
+
+.card-body::-webkit-scrollbar-thumb {
+    background-color: #6c757d;
+    border-radius: 4px;
+}
+
+.card-body::-webkit-scrollbar-track {
+    background-color: #f1f1f1;
+}
+
+.quantity-container {
+    display: flex;
+    align-items: center;
+}
+
+.quantity-input {
+    width: 60px;
+    text-align: center;
+    border-radius: 0 !important;
+}
+
+.quantity-minus {
+    border-radius: 3px 0 0 3px !important;
+
+}
+
+.quantity-plus {
+    border-radius: 0 3px 3px 0 !important;
+
+}
+
+.customer-select2 .select2-container--default .select2-selection--single {
+    border-radius: 5px 0 0 5px !important;
+    height: 32px !important;
+    display: flex !important;
+    align-items: center !important;
+    padding: 0 8px !important;
+    font-size: 13px !important;
+}
+
+.customer-select2 .select2-container--default .select2-selection--single .select2-selection__rendered {
+    line-height: 32px !important;
+    padding-left: 0 !important;
+    font-size: 13px !important;
+}
+
+.customer-select2 .select2-container--default .select2-selection--single .select2-selection__arrow {
+    height: 32px !important;
+}
+
+.customer-select2 #addCustomerButton {
+    height: 32px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 0 12px !important;
+    font-size: 13px !important;
+}
+
+/* Customer + product search row: cols must shrink so Select2 does not spill into next column */
+.pos-customer-search-header > [class*="col-"] {
+    min-width: 0;
+}
+
+/* Select2 + add-customer: flex min-width 0 stops overlap into + btn / product search */
+.pos-customer-row {
+    min-width: 0;
+    gap: 0.25rem;
+}
+.pos-customer-select-wrap {
+    min-width: 0;
+}
+.pos-customer-select-wrap .select2-container {
+    width: 100% !important;
+    max-width: 100% !important;
+}
+.pos-customer-select-wrap .select2-container--default .select2-selection--single .select2-selection__rendered {
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+}
+.pos-customer-row .pos-add-customer-btn {
+    flex-shrink: 0 !important;
+    position: relative;
+    z-index: 2;
+}
+
+.batch-dropdown {
+    width: 100%;
+    margin-top: 5px;
+}
+
+.price-input,
+.subtotal {
+    text-align: right;
+}
+
+.product-name {
+    font-size: 16px;
+    font-weight: bold;
+}
+
+
+
+.star {
+    color: gold;
+    font-size: 20px;
+    margin-left: 5px;
+}
+
+/* (styles for .ui-autocomplete are defined in the unified base above) */
+
+/* Scrollbar styling for autocomplete */
+.ui-autocomplete::-webkit-scrollbar {
+    width: 6px;
+}
+
+.ui-autocomplete::-webkit-scrollbar-thumb {
+    background-color: #888;
+    border-radius: 10px;
+}
+
+.ui-autocomplete::-webkit-scrollbar-track {
+    background-color: #f5f5f5;
+}
+
+/* Menu item styling – single base (hover/focus for keyboard nav) */
+.ui-menu .ui-menu-item {
+    border-bottom: 1px solid #f5f5f5;
+    padding: 8px 12px;
+    cursor: pointer;
+}
+
+.ui-menu .ui-menu-item:last-child {
+    border-bottom: none;
+}
+
+.ui-menu .ui-menu-item a,
+.ui-menu .ui-menu-item div,
+.ui-menu .ui-menu-item-wrapper {
+    padding: 10px 15px;
+    display: block;
+    color: #333;
+    text-decoration: none;
+    line-height: 1.5;
+    white-space: normal;
+    word-wrap: break-word;
+}
+
+.ui-menu .ui-menu-item a {
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.ui-menu .ui-menu-item:hover,
+.ui-menu .ui-menu-item.ui-state-focus,
+.ui-menu .ui-menu-item.ui-state-active {
+    background-color: #007bff !important;
+    color: #fff !important;
+    border-radius: 4px;
+}
+
+.ui-autocomplete .ui-menu-item-wrapper small,
+.ui-autocomplete .ui-menu-item-wrapper .text-muted {
+    font-size: 12px;
+    color: #666;
+    display: block;
+    margin-top: 3px;
+}
+
+/* Mobile/Tablet: Fix autocomplete overflow */
+
+/* ========== 5. PRODUCT INFO, BILLING TABLE (DESKTOP) ========== */
+/* Product info row, name, and badge (billing table col 2) */
+.product-info {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: flex-start !important;
+    gap: 8px !important;
+    min-width: 0 !important;
+    flex-wrap: wrap !important;
+}
+
+.product-name {
+    font-weight: bold !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    flex-wrap: wrap !important;
+    word-break: break-word !important;
+    min-width: 0 !important;
+}
+
+.product-name .badge {
+    flex-shrink: 0 !important;
+    max-width: 100% !important;
+    white-space: nowrap !important;
+    margin-left: 4px !important;
+}
+
+
+
+/* ========== 7. TABLET
+
+/* Reduce bottom section spacing for tablets */
+
+/* 600px–767px: Small tablet, landscape mobile */
+/* Reduce spacing for mobile/small tablets */
+
+/* Reduce spacing for small mobile screens */
+
+/* Fix for all: remove excessive whitespace on product cards
+.product-card,
+.category-card,
+.brand-card {
+    box-sizing: border-box;
+    background: #fff !important;
+    border: 1px solid #e2e2e2 !important;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03) !important;
+} */
+
+/* Mobile checkout dock – summary card + PAY bar stacked at bottom */
+.pos-mobile-checkout-dock {
+    display: none;
+}
+
+.mobile-bottom-fixed {
+    width: 100%;
+    padding: 0;
+    background: #2563eb;
+    overflow: hidden;
+}
+
+.mobile-bottom-container {
+    background: #2563eb;
+    padding: 14px 16px max(14px, env(safe-area-inset-bottom));
+}
+
+.pos-mobile-pay-full-btn {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 12px;
+    width: 100%;
+    background: transparent !important;
+    border: none !important;
+    padding: 0 !important;
+    min-height: 52px;
+    box-shadow: none !important;
+}
+
+.pos-mobile-pay-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+    flex: 1 1 auto;
+}
+
+.pos-mobile-pay-text {
+    min-width: 0;
+}
+
+.pos-mobile-proceed-btn {
+    flex-shrink: 0;
+    color: #fff;
+    font-size: 0.95rem;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+}
+
+/* Hide mobile checkout dock on desktop */
+
+/* Below 992px: fix bottom dock + only scroll wrapper scrolls */
+
+@keyframes slideUpFade {
+    from {
+        transform: translateY(100%);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+/* Payment Modal Styles (mobile-first, compact) */
+#mobilePaymentModal .modal-content {
+    border-radius: 14px;
+    overflow: hidden;
+    border: 1px solid #e9ecef;
+}
+
+#mobilePaymentModal .modal-header {
+    padding: 12px 14px;
+}
+
+#mobilePaymentModal .modal-title {
+    font-size: 0.95rem;
+    font-weight: 700;
+}
+
+#mobilePaymentModal #modal-final-total {
+    font-size: 0.95rem;
+    font-weight: 800;
+}
+
+#mobilePaymentModal .payment-icon {
+    width: 38px;
+    height: 38px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    flex: 0 0 auto;
+}
+
+#mobilePaymentModal .list-group-item {
+    border: none;
+    border-bottom: 1px solid #f0f0f0;
+    padding: 10px 14px !important;
+    transition: background-color 0.15s ease;
+}
+
+#mobilePaymentModal .list-group-item:hover {
+    background-color: #f8f9fa;
+}
+
+#mobilePaymentModal .list-group-item:active {
+    background-color: #eef2f7;
+}
+
+#mobilePaymentModal .list-group-item h6 {
+    font-size: 0.9rem;
+    font-weight: 700;
+}
+
+#mobilePaymentModal .list-group-item small {
+    font-size: 0.75rem;
+}
+
+/* OR divider + action grid spacing */
+#mobilePaymentModal .modal-body .mt-3 {
+    margin-top: 0.5rem !important;
+}
+#mobilePaymentModal .modal-body .px-3.py-2 {
+    padding-top: 8px !important;
+    padding-bottom: 8px !important;
+}
+#mobilePaymentModal .modal-body .d-flex.align-items-center.mb-3 {
+    margin-bottom: 10px !important;
+}
+
+#mobilePaymentModal .mobile-action-btn {
+    padding: 10px 10px !important;
+    font-size: 12px;
+    border-radius: 12px;
+    transition: background-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+#mobilePaymentModal .mobile-action-btn:hover {
+    transform: none;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+
+#mobilePaymentModal .mobile-action-btn i {
+    font-size: 1.05rem !important;
+}
+
+#mobilePaymentModal #mobile-cancel-button {
+    padding: 10px 14px !important;
+    border-radius: 12px !important;
+}
+
+/* ========== 6. MOBILE/TABLET
+
+/* Small Mobile Screens */
+
+/* Extra Small Mobile Screens */
+
+/* Mobile Menu Offcanvas Styles */
+#mobileMenuOffcanvas .list-group-item {
+    border-left: none;
+    border-right: none;
+    transition: all 0.3s ease;
+    font-size: 15px;
+}
+
+#mobileMenuOffcanvas .list-group-item:hover {
+    background-color: #f8f9fa;
+    padding-left: 1.5rem;
+}
+
+#mobileMenuOffcanvas .list-group-item:first-child {
+    border-top: none;
+}
+
+#mobileMenuOffcanvas .offcanvas-body {
+    padding: 0;
+}
+
+/* Mobile menu - make it beautiful like your reference image */
+#mobileMenuOffcanvas .offcanvas {
+    width: 280px;
+}
+
+#mobileMenuOffcanvas .list-group-item {
+    border-bottom: 1px solid #e9ecef;
+}
+
+#mobileMenuOffcanvas .list-group-item .fw-medium {
+    font-size: 14px;
+    color: #212529;
+}
+
+/* Collapse invoice section styling */
+#invoiceCollapse .card-body {
+    margin: 0 1rem 1rem 1rem;
+    border-radius: 8px;
+}
+
+/* Mobile Menu Modal Card Styles */
+.menu-card {
+    background: white;
+    border: none;
+    border-radius: 15px;
+    padding: 15px 10px;
+    text-align: center;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    min-height: 100px;
+}
+
+.menu-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.15);
+}
+
+.menu-card:active {
+    transform: translateY(-2px);
+}
+
+.menu-card .menu-icon {
+    width: 45px;
+    height: 45px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 20px;
+    margin-bottom: 5px;
+}
+
+.menu-card span {
+    font-size: 11px;
+    font-weight: 500;
+    color: #333;
+    line-height: 1.2;
+    text-align: center;
+}
+
+/* Modal styling */
+#mobileMenuModal .modal-body {
+    max-height: 70vh;
+    overflow-y: auto;
+}
+
+/* Responsive adjustments */
+
+/* Desktop screens */
+
+/* Laptop screen fix (1024px-1199px) */
+
+/* Header Mobile Styles */
+
+/* ========== 9. MISC (sales rep badges, vehicle/route, overrides) ========== */
+/* Vehicle/Route badges responsive */
+#salesRepDisplay .badge {
+    font-size: 12px;
+}
+
+/* Force hide on mobile - IMPORTANT */
+
+/* Customer Credit Information Styling - COMPACT */
+.customer-credit-info {
+    margin-top: 4px;
+}
+
+.customer-credit-info .border {
+    border-color: #e0e6ed !important;
+    background-color: #f8f9fa;
+}
+
+.customer-credit-info .col-4 {
+    transition: background-color 0.2s ease;
+    padding: 4px 8px !important;
+}
+
+.customer-credit-info .col-4:hover {
+    background-color: #e9ecef;
+}
+
+.customer-credit-info small {
+    font-size: 9px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+.customer-credit-info .fw-bold {
+    font-size: 11px;
+    font-weight: 600;
+}
+
+/* Better spacing between customer section and product search */
+#productSearchInput {
+    margin-top: 0;
+}
+
+/* Responsive adjustments for mobile */
+
+/* Search product bar: single bar, strict alignment – icon | input | button */
+.pos-search-row.input-group {
+    display: flex;
+    align-items: center;
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1px solid #ced4da;
+    background: #fff;
+    height: 40px !important;
+    min-height: 40px;
+    margin: 0;
+    box-sizing: border-box;
+}
+.pos-search-row .input-group-text {
+    width: 44px;
+    min-width: 44px;
+    height: 100% !important;
+    min-height: 40px;
+    padding: 0 !important;
+    margin: 0 !important;
+    border: none !important;
+    border-right: 1px solid #ced4da !important;
+    border-radius: 10px 0 0 10px !important;
+    background: #fff !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    flex-shrink: 0;
+    box-sizing: border-box;
+}
+.pos-search-row .input-group-text i {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 1em;
+    height: 1em;
+    font-size: 1rem !important;
+    line-height: 1 !important;
+}
+.pos-search-row .form-control {
+    height: 100% !important;
+    min-height: 40px !important;
+    border: none !important;
+    border-radius: 0 !important;
+    flex: 1;
+    min-width: 0;
+    padding: 0 12px !important;
+    margin: 0 !important;
+    font-size: 14px !important;
+    line-height: 40px !important;
+    box-sizing: border-box !important;
+    vertical-align: middle;
+}
+.pos-search-row .form-control::placeholder {
+    line-height: 40px;
+    color: #6c757d;
+}
+.pos-search-row .form-control:focus {
+    box-shadow: none !important;
+    outline: none !important;
+}
+/* Quick price entry bar – match 2nd image: dotted orange border when focused */
+#cashEntryBar {
+    background: #fff !important;
+    border: 1px dashed #e9ecef;
+    border-radius: 10px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+#cashEntryBar:focus-within,
+#cashEntryBar.show {
+    border: 2px dashed #fd7e14 !important;
+    outline: none;
+    box-shadow: 0 0 0 1px rgba(253, 126, 20, 0.2);
+}
+#cashPriceInput:focus,
+#cashQtyInput:focus {
+    border-color: #fd7e14 !important;
+    box-shadow: 0 0 0 1px rgba(253, 126, 20, 0.25);
+}
+.pos-search-row .pos-search-grid-btn {
+    width: 44px !important;
+    min-width: 44px !important;
+    height: 100% !important;
+    min-height: 40px !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border: none !important;
+    border-left: 1px solid #ced4da !important;
+    border-radius: 0 10px 10px 0 !important;
+    background: #e9ecef !important;
+    color: #495057 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    flex-shrink: 0;
+    box-sizing: border-box !important;
+}
+.pos-search-row .pos-search-grid-btn i {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 1em;
+    height: 1em;
+    font-size: 1rem !important;
+    line-height: 1 !important;
+}
+/* Hide product-list grid button on desktop (≥ 992px) even if classes conflict */
+
+.pos-search-row .pos-search-grid-btn:hover {
+    background: #dee2e6 !important;
+    color: #212529 !important;
+}
+.pos-search-row .btn#cashEntryToggle {
+    width: 44px !important;
+    min-width: 44px !important;
+    height: 100% !important;
+    min-height: 40px !important;
+    padding: 0 10px !important;
+    margin: 0 !important;
+    border: none !important;
+    border-left: 1px solid #ced4da !important;
+    border-radius: 0 10px 10px 0 !important;
+    background: #e9ecef !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    box-sizing: border-box !important;
+}
+.pos-search-row .btn#cashEntryToggle i {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-size: 1rem !important;
+    line-height: 1 !important;
+}
+
+/* ═══ Mobile/Tablet header bar (below 992px) – match 2nd image: light grey bar, blue cart, dark grey square buttons ═══ */
+
+/* ═══ Design reference: mobile/tablet UI below 992px (clean, modern) ═══ */
+
+/* Mobile Billing Table Card Styles (phones only) */
+
+/* ========== 8. DESKTOP
+
+/* Desktop: Reduce table cell padding for compact display */
+
+/* Additional compact adjustments for standard desktop screens */
+
+#jobTicketModal .form-label {
+    font-weight: 500;
+}
+
+#jobTicketModal input[readonly],
+#jobTicketModal textarea[readonly] {
+    background: #f8f9fa;
+}
+
+#jobTicketModal input,
+#jobTicketModal textarea {
+    font-size: 13px;
+}
+
+#jobTicketModal .modal-content {
+    border-radius: 10px;
+}
+
+.modal-body {
+    max-height: 70vh;
+    overflow-y: auto;
+}
+
+.table-responsive {
+    overflow-x: auto;
+}
+
+ .btn-gradient {
+    background: linear-gradient(85deg, #1e90ff, #1e90ff, #87cefa);
+    border: none;
+    color: white;
+    transition: background 0.3s ease;
+}
+
+.btn-gradient:hover {
+    background: linear-gradient(85deg, #1e90ff, #1e90ff);
+    color: white;
+}
+
+/* Ensure desktop payment buttons are visible on large screens and above */
+
+/* ===== MOBILE RESPONSIVE IMPROVEMENTS ===== */
+
+/* Mobile container adjustments */
+
+/* Tablet responsive improvements */
+
+/* Product grid container responsive */
+
+/* Fix mobile modal and offcanvas */
+
+/* Mobile button improvements */
+
+/* Sub: POS responsive UI/UX — tablet & mobile (product grid 2 cols, modal) */
+/* Tablet: better product grid (2 cols, clearer cards) */
+
+/* Mobile: product list single column with spacing */
+
+/* Billing body: clearer card + remove button (mobile only) */
+
+/* Tablet: product grid container spacing */
+
+/* Sub: Mobile & tablet – product grid hidden, modal only */
+
+/* Mobile product modal: size to content so no big white gap below few products */
+#mobileProductModal .modal-content {
+    display: flex;
+    flex-direction: column;
+    max-height: 100vh;
+}
+#mobileProductModal .modal-body {
+    flex: 0 1 auto !important;
+    min-height: 0 !important;
+    max-height: calc(100vh - 120px) !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
+}
+#mobileProductModalBody {
+    padding-bottom: 80px !important;
+}
+
+/* Mobile product modal: same beautiful card as desktop (image, stock badge, name, SKU, price, + button) */
+#mobileProductGrid .product-card,
+#mobileProductGrid .product-card-mobile {
+    min-height: 180px;
+    margin-bottom: 0;
+}
+#mobileProductGrid .product-card-image {
+    aspect-ratio: 1;
+    min-height: 100px;
+    max-height: 140px;
+}
+#mobileProductGrid .product-card-name {
+    font-size: 12px;
+    -webkit-line-clamp: 2;
+}
+#mobileProductGrid .product-card-sku {
+    font-size: 10px;
+}
+#mobileProductGrid .product-card-price {
+    font-size: 14px;
+}
+#mobileProductGrid .product-card-add-btn {
+    width: 36px;
+    height: 36px;
+    font-size: 20px;
+}
+#mobileProductGrid .product-card-stock-badge {
+    font-size: 9px;
+    padding: 3px 6px;
+}
+#mobileProductGrid .row.g-2 {
+    row-gap: 12px;
+}
+
+/* ===== Final POS row alignment override (quantity, discounts, unit price) – desktop table only ===== */
+
+/*
+ * Billing row column map (standard POS row with free-qty td present):
+ * 1 # | 2 Product | 3 Qty | 4 Free | 5 Discount (colspan 2) | 6 Unit price | 7 VAT | 8 Subtotal | 9 Remove
+ */
+
+/* Final override: keep Sale Notes textarea comfortably tall and visible on all sizes */
+#sale-notes-textarea {
+    min-height: 48px !important;
+    max-height: 90px !important;
+    resize: vertical;
+}
+
+/* ===== Desktop compact POS layout (100% zoom) ===== */
+
+/* ===== POS desktop compact cart layout – more items per screen ===== */
+
+/* ===== Ultra-compact cart rows for large desktops (target 9–10 items visible) ===== */
+
+/* POS discount group – Rs / % on same line as inputs (desktop) */
+
+/* POS cart delete button – column 9 (after subtotal) */
+
+/* POS desktop billing row – one visual baseline for Qty / Free / Disc / Price / VAT / Subtotal */
+
+/* POS desktop item counter – compact row */
+
+/* POS billing header – compact */
+
+/* POS billing summary panel – extra compact */
+
+/* Main POS billing card: reduce padding below cart so more product rows stay visible (desktop) */
+
+/* ===== POS alignment fix (100% zoom) – quantity stepper + customer row ===== */

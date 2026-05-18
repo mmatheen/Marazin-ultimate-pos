@@ -120,7 +120,7 @@ class SaleQueryService
      *     already_returned?: array
      * }
      */
-    public function getByInvoiceNo(string $invoiceNo): array
+    public function getByInvoiceNo(string $invoiceNo, ?int $forEditSalesReturnId = null): array
     {
         $query = Sale::withoutGlobalScope(LocationScope::class)
             ->with(['products.product.unit', 'salesReturns'])
@@ -145,11 +145,22 @@ class SaleQueryService
             throw new ModelNotFoundException('Sale not found');
         }
 
-        if ($sale->salesReturns->count() > 0) {
+        if ($forEditSalesReturnId) {
+            $editingReturn = \App\Models\SalesReturn::query()->find($forEditSalesReturnId);
+            if (! $editingReturn || (int) $editingReturn->sale_id !== (int) $sale->id) {
+                throw new ModelNotFoundException('Sale return not found for this invoice');
+            }
+        }
+
+        $otherReturns = $forEditSalesReturnId
+            ? $sale->salesReturns->where('id', '!=', $forEditSalesReturnId)
+            : $sale->salesReturns;
+
+        if ($otherReturns->count() > 0) {
             throw new \DomainException(json_encode([
                 'error'          => 'This sale has already been returned. Multiple returns for the same invoice are not allowed.',
-                'returned_count' => $sale->salesReturns->count(),
-                'return_details' => $sale->salesReturns->map(fn ($r) => [
+                'returned_count' => $otherReturns->count(),
+                'return_details' => $otherReturns->map(fn ($r) => [
                     'return_date'  => $r->return_date,
                     'return_total' => $r->return_total,
                     'notes'        => $r->notes,
@@ -157,9 +168,29 @@ class SaleQueryService
             ]));
         }
 
-        $products = $sale->products->map(function ($product) use ($sale) {
-            $product->current_quantity = $sale->getCurrentSaleQuantity($product->product_id);
-            $product->return_price     = $product->price;
+        $editingReturnProducts = $forEditSalesReturnId
+            ? \App\Models\SalesReturnProduct::where('sales_return_id', $forEditSalesReturnId)->get()
+            : collect();
+
+        $products = $sale->products->map(function ($product) use ($sale, $forEditSalesReturnId, $editingReturnProducts) {
+            // Per invoice line (not per product_id) — same product twice = two separate rows
+            $excludeReturnId = $forEditSalesReturnId;
+            $product->current_quantity = $sale->getCurrentSaleLineQuantity($product, $excludeReturnId);
+            $product->current_free_quantity = $sale->getCurrentSaleLineFreeQuantity($product, $excludeReturnId);
+            $product->return_price = $product->price;
+
+            $matchedReturnLine = $editingReturnProducts->first(function ($rp) use ($product) {
+                if ((int) $rp->product_id !== (int) $product->product_id) {
+                    return false;
+                }
+                if (abs((float) $rp->return_price - (float) $product->price) >= 0.01) {
+                    return false;
+                }
+
+                return (string) ($rp->batch_id ?? '') === (string) ($product->batch_id ?? '');
+            });
+            $product->return_quantity = $matchedReturnLine ? (float) $matchedReturnLine->quantity : 0;
+            $product->return_free_quantity = $matchedReturnLine ? (float) ($matchedReturnLine->free_quantity ?? 0) : 0;
 
             $productModel  = $product->product;
             $product->unit = ($productModel && $productModel->unit)
@@ -172,19 +203,34 @@ class SaleQueryService
                 : ['id' => null, 'name' => 'Pieces', 'short_name' => 'Pc(s)', 'allow_decimal' => false];
 
             return $product;
-        })->filter(fn ($p) => $p->current_quantity > 0)->values();
+        });
+
+        if ($forEditSalesReturnId) {
+            // Edit: show every invoice line so user can add/remove return qty per line
+            $products = $products->filter(
+                fn ($p) => (float) ($p->quantity ?? 0) > 0 || (float) ($p->free_quantity ?? 0) > 0
+            )->values();
+        } else {
+            $products = $products->filter(
+                fn ($p) => $p->current_quantity > 0 || $p->current_free_quantity > 0
+            )->values();
+        }
 
         $billDiscountType = $sale->discount_type;
         if (is_string($billDiscountType) && strtolower($billDiscountType) === 'percent') {
             $billDiscountType = 'percentage';
         }
 
+        $sale->loadMissing('location:id,name');
+
         return [
             'sale_id'           => $sale->id,
             'invoice_no'        => $invoiceNo,
             'customer_id'       => $sale->customer_id,
             'location_id'       => $sale->location_id,
+            'location_name'     => $sale->location?->name,
             'products'          => $products,
+            'edit_mode'         => $forEditSalesReturnId !== null,
             'original_discount' => [
                 'discount_type'           => $billDiscountType,
                 'discount_amount'         => (float) ($sale->discount_amount ?? 0),

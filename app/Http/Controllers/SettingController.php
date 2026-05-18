@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Jobs\SendSmsJob;
 use Illuminate\Http\Request;
 use App\Models\Setting;
+use App\Support\PurchaseTableColumns;
+use App\Support\TaxSettingsAccess;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Artisan;
@@ -15,7 +17,7 @@ class SettingController extends Controller
     function __construct()
     {
         $this->middleware('permission:view settings', ['only' => ['index']]);
-        $this->middleware('permission:edit business-settings', ['only' => ['update', 'updatePriceValidation', 'updateFreeQty']]);
+        $this->middleware('permission:edit business-settings', ['only' => ['update', 'updatePriceValidation', 'updateFreeQty', 'updatePurchaseTableColumns']]);
         $this->middleware('permission:edit backorder-settings', ['only' => ['updateBackorders']]);
         $this->middleware('permission:edit sms-settings', ['only' => ['updateSmsSettings', 'updateEnableSms']]);
         $this->middleware('permission:sms.send', ['only' => ['sendSms']]);
@@ -28,7 +30,49 @@ class SettingController extends Controller
     public function index()
     {
         $setting = Setting::firstOrFail(); // Only one setting
-        return view('admin.settings.index', compact('setting'));
+        $canUseFreeQty = (bool)($setting->enable_free_qty ?? 1)
+            && (auth()->user()?->can('create supplier claims') ?? false);
+        $canManageTax = TaxSettingsAccess::canManage();
+
+        $purchaseTableColumns = PurchaseTableColumns::fromSetting($canUseFreeQty, $canManageTax);
+        $purchaseColumnDefinitions = PurchaseTableColumns::settingsFormColumns($canUseFreeQty, $canManageTax);
+        $mandatoryPurchaseColumns = PurchaseTableColumns::MANDATORY_COLUMNS;
+
+        return view('admin.settings.index', compact(
+            'setting',
+            'canUseFreeQty',
+            'canManageTax',
+            'purchaseTableColumns',
+            'purchaseColumnDefinitions',
+            'mandatoryPurchaseColumns'
+        ));
+    }
+
+    /**
+     * Update optional column visibility for Add/Edit Purchase product table.
+     */
+    public function updatePurchaseTableColumns(Request $request)
+    {
+        $canUseFreeQty = (bool)(Setting::value('enable_free_qty') ?? 1)
+            && (auth()->user()?->can('create supplier claims') ?? false);
+        $canManageTax = TaxSettingsAccess::canManage();
+        $definitions = PurchaseTableColumns::settingsFormColumns($canUseFreeQty, $canManageTax);
+
+        $columns = [];
+        foreach (array_keys($definitions) as $key) {
+            $columns[$key] = $request->boolean($key);
+        }
+
+        $setting = Setting::firstOrFail();
+        $setting->purchase_table_columns = $columns;
+        $setting->save();
+        Cache::forget('active_setting');
+
+        return response()->json([
+            'status' => true,
+            'message' => 'Purchase table column settings saved successfully.',
+                'columns' => PurchaseTableColumns::resolved($columns, $canUseFreeQty, $canManageTax),
+        ]);
     }
 
     /**

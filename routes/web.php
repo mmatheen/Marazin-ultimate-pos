@@ -315,6 +315,7 @@ Route::middleware(['auth'])->group(function () {
          // -------------------- PurchaseController Routes --------------------
         Route::get('/list-purchase', [PurchaseController::class, 'listPurchase'])->name('list-purchase');
         Route::get('/add-purchase', [PurchaseController::class, 'addPurchase'])->name('add-purchase');
+        Route::redirect('/purchase-settings', '/site-settings#purchase')->name('purchase-settings');
         // -------------------- Supplier Free Claim Routes --------------------
         Route::get('/supplier-claims', [SupplierFreeClaimController::class, 'index'])->name('supplier-claims.index');
         Route::get('/supplier-claims/standalone', [SupplierFreeClaimController::class, 'standalone'])->name('supplier-claims.standalone');
@@ -611,6 +612,7 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/site-settings/update-sms-settings', [SettingController::class, 'updateSmsSettings'])->name('settings.update-sms-settings');
         Route::post('/site-settings/send-sms', [SettingController::class, 'sendSms'])->name('settings.send-sms');
         Route::post('/site-settings/backup-now', [SettingController::class, 'backupNow'])->name('settings.backup-now');
+        Route::post('/site-settings/purchase-columns', [SettingController::class, 'updatePurchaseTableColumns'])->name('settings.update-purchase-columns');
 
         // -------------------- Tax Rate CRUD Routes --------------------
         Route::get('/tax-rates', [TaxRateController::class, 'index'])->name('tax-rates.index');

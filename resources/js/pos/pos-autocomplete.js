@@ -299,8 +299,15 @@ function hideSearchIndicator() {
  * Clear the search input and re-focus it so the cashier can immediately
  * scan or type the next product.
  */
+function isPosBlockedByBatchModal() {
+    return typeof window.isBatchPriceSelectionPending === 'function' &&
+        window.isBatchPriceSelectionPending();
+}
+
 function autoFocusSearchInput() {
+    if (isPosBlockedByBatchModal()) return;
     setTimeout(() => {
+        if (isPosBlockedByBatchModal()) return;
         const $input = $('#productSearchInput');
         if ($input.length) $input.val('').focus();
     }, 100);
@@ -436,6 +443,14 @@ function createProductSearchRequest(term, response) {
  */
 function searchForExactMatch(searchTerm, options = {}) {
     const requireExact = !!options.requireExact;
+
+    if (isPosBlockedByBatchModal()) {
+        $('#productSearchInput').val('');
+        if (typeof window.notifyBatchSelectionRequired === 'function') {
+            window.notifyBatchSelectionRequired();
+        }
+        return;
+    }
 
     if (!window.selectedLocationId) return;
 
@@ -700,6 +715,7 @@ function handleSearchError(jqXHR, textStatus, response) {
  * @param {string} term
  */
 function checkForAutoAdd(results, term) {
+    if (isPosBlockedByBatchModal()) return;
     if (term.length < 2) return; // ignore single-char to avoid accidental add
 
     const exactSkuOrImei = results.find(r => {
@@ -748,6 +764,13 @@ function checkForAutoAdd(results, term) {
  * @param {string} [matchType='']  - 'SKU'|'IMEI'|'MANUAL'|'MANUAL_ENTER'|'SCANNER_SKU'|
  */
 function addProductFromAutocomplete(item, searchTerm = '', matchType = '') {
+    if (isPosBlockedByBatchModal()) {
+        $('#productSearchInput').val('');
+        if (typeof window.notifyBatchSelectionRequired === 'function') {
+            window.notifyBatchSelectionRequired();
+        }
+        return;
+    }
     if (!item.product) return;
 
     //  Dedup guard
@@ -806,6 +829,13 @@ function addProductFromAutocomplete(item, searchTerm = '', matchType = '') {
  * @param {jQuery} $input
  */
 function handleManualEnter($input) {
+    if (isPosBlockedByBatchModal()) {
+        $input.val('');
+        if (typeof window.notifyBatchSelectionRequired === 'function') {
+            window.notifyBatchSelectionRequired();
+        }
+        return;
+    }
     const focused    = $input.autocomplete('widget').find('.ui-state-focus');
     const term       = $input.val().trim();
     let itemToAdd    = getSelectedItem(focused);
@@ -949,6 +979,13 @@ function shouldAddProduct(item) {
  * @param {string} scannedValue
  */
 function handleBarcodeScan(scannedValue) {
+    if (isPosBlockedByBatchModal()) {
+        $('#productSearchInput').val('');
+        if (typeof window.notifyBatchSelectionRequired === 'function') {
+            window.notifyBatchSelectionRequired();
+        }
+        return;
+    }
     if (!scannedValue || scannedValue.length < 2) {
         autoFocusSearchInput();
         return;
@@ -978,6 +1015,7 @@ function initAutocomplete() {
 
         //  source: three-tier lookup
         source(request, response) {
+            if (isPosBlockedByBatchModal()) return response([]);
             if (!window.selectedLocationId) return response([]);
 
             const term       = request.term;
@@ -1025,6 +1063,14 @@ function initAutocomplete() {
 
         //  select: user clicks or presses Enter on a menu item
         select(event, ui) {
+            if (isPosBlockedByBatchModal()) {
+                event.preventDefault();
+                $('#productSearchInput').val('');
+                if (typeof window.notifyBatchSelectionRequired === 'function') {
+                    window.notifyBatchSelectionRequired();
+                }
+                return false;
+            }
             if (ui.item.showQuickAdd && ui.item.searchTerm) {
                 event.preventDefault();
                 $('#productSearchInput').val('');
@@ -1210,6 +1256,19 @@ function setupKeyboardEvents() {
 
         //  keydown: classify and route
         .on('keydown.scanner', function (event) {
+            if (isPosBlockedByBatchModal()) {
+                event.preventDefault();
+                event.stopPropagation();
+                if (event.key === 'Enter') {
+                    $(this).val('');
+                    scannerBuffer = '';
+                    scannerActive = false;
+                    if (typeof window.notifyBatchSelectionRequired === 'function') {
+                        window.notifyBatchSelectionRequired();
+                    }
+                }
+                return;
+            }
             const now          = Date.now();
             const interKeyDiff = now - lastKeyTime;
             prevKeyTime = lastKeyTime;
@@ -1290,6 +1349,10 @@ function setupKeyboardEvents() {
 
         //  input: handle fast human typing without interfering with scanner
         .on('input.scanner', function () {
+            if (isPosBlockedByBatchModal()) {
+                $(this).val('');
+                return;
+            }
             // If scanner is active, DO NOT fire autocomplete('search').
             // handleBarcodeScan() will do exactly one search on Enter.
             if (scannerActive) return;
@@ -1426,6 +1489,10 @@ function setupInputEvents() {
 
         .on('paste', function () {
             setTimeout(() => {
+                if (isPosBlockedByBatchModal()) {
+                    $(this).val('');
+                    return;
+                }
                 const pasted = $(this).val().trim();
                 if (pasted.length > 0) handleBarcodeScan(pasted);
             }, 50);

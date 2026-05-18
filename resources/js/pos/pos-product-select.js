@@ -31,6 +31,32 @@ let priceType   = 'retail';
 window.priceType = priceType; // Phase 14: expose for pos-sale.js (gatherSaleData)
 let selectedRow;
 let activeModalProductId      = null;
+let batchPriceModalOpen       = false;
+
+function isBatchPriceSelectionPending() {
+    return batchPriceModalOpen;
+}
+
+function notifyBatchSelectionRequired() {
+    toastr.warning(
+         'Please select a batch before adding the product.',
+         'Batch Selection Required'
+    );
+}
+
+function setBatchPriceModalOpen(isOpen) {
+    batchPriceModalOpen = isOpen;
+    const searchInput = document.getElementById('productSearchInput');
+    if (!searchInput) return;
+
+    if (isOpen) {
+        searchInput.value = '';
+        searchInput.blur();
+        if (typeof $ !== 'undefined' && $('#productSearchInput').data('ui-autocomplete')) {
+            $('#productSearchInput').autocomplete('close');
+        }
+    }
+}
 let selectedImeisInBilling    = [];
 let currentImeiProduct        = null;
 let currentImeiStockEntry     = null;
@@ -46,8 +72,63 @@ function resolveAutoPriceType(customerType, batch, product) {
     return 'retail';
 }
 
+function parseBatchExpiryTimestamp(expiryDate) {
+    if (!expiryDate || expiryDate === 'null') return null;
+    const parsed = new Date(expiryDate);
+    return Number.isNaN(parsed.getTime()) ? null : parsed.getTime();
+}
+
+function sortBatchesByExpiryAsc(batches) {
+    return batches.sort((a, b) => {
+        const tsA = parseBatchExpiryTimestamp(a.expiry_date);
+        const tsB = parseBatchExpiryTimestamp(b.expiry_date);
+        if (tsA === null && tsB === null) return parseInt(b.id, 10) - parseInt(a.id, 10);
+        if (tsA === null) return 1;
+        if (tsB === null) return -1;
+        if (tsA !== tsB) return tsA - tsB;
+        return parseInt(b.id, 10) - parseInt(a.id, 10);
+    });
+}
+
+function formatBatchExpiryCell(expiryDate) {
+    const ts = parseBatchExpiryTimestamp(expiryDate);
+    if (ts === null) return '<span class="text-muted">—</span>';
+
+    const expiry = new Date(ts);
+    const formatted = expiry.toLocaleDateString('en-GB', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+    });
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    expiry.setHours(0, 0, 0, 0);
+    const daysToExpiry = Math.floor((expiry - today) / (1000 * 60 * 60 * 24));
+
+    if (daysToExpiry < 0) {
+        return `${formatted}<br><small class="text-danger fw-semibold">Expired</small>`;
+    }
+    if (daysToExpiry <= 30) {
+        return `${formatted}<br><small class="text-warning fw-semibold">${daysToExpiry} day(s) left</small>`;
+    }
+    return formatted;
+}
+
+function getBatchPriceModalColspan(allowedPriceTypes) {
+    let count = 4; // Batch No + Expiry Date + Quantity + Action
+    if (allowedPriceTypes.includes('max_retail')) count += 1;
+    if (allowedPriceTypes.includes('retail')) count += 1;
+    return count;
+}
+
 // ---- addProductToTable ----
 function addProductToTable(product, searchTermOrQty = '', matchType = '') {
+    if (isBatchPriceSelectionPending()) {
+        notifyBatchSelectionRequired();
+        return;
+    }
+
     // Check if second parameter is a number (quantity from mobile modal)
     const isMobileQuantity = typeof searchTermOrQty === 'number';
     const mobileQty = isMobileQuantity ? searchTermOrQty : null;
@@ -294,6 +375,43 @@ function addProductToTable(product, searchTermOrQty = '', matchType = '') {
     }
 }
 
+// ---- Batch selection helpers (shared with mobile product grid) ----
+function getSellableBatchesForLocation(stockEntry, selectedLocationId) {
+    let batchesArray = normalizeBatches(stockEntry);
+    return batchesArray.filter(batch =>
+        Array.isArray(batch.location_batches) &&
+        batch.location_batches.some(lb =>
+            String(lb.location_id) == String(selectedLocationId) &&
+            ((parseFloat(lb.quantity) || 0) + (parseFloat(lb.free_quantity) || 0)) > 0
+        )
+    );
+}
+
+function productRequiresBatchPriceSelection(stockEntry) {
+    if (!stockEntry?.product) return false;
+
+    const product = stockEntry.product;
+    const selectedLocationId = window.selectedLocationId;
+    if (!selectedLocationId) return false;
+
+    if (product.stock_alert === 0) return false;
+
+    const batchesArray = getSellableBatchesForLocation(stockEntry, selectedLocationId);
+    if (batchesArray.length === 0) return false;
+
+    const currentCustomer = window.Pos.Customer.getCurrentCustomer();
+    const uniquePrices = [];
+    for (const batch of batchesArray) {
+        const priceResult = window.Pos.Customer.getCustomerTypePrice(
+            batch, product, currentCustomer.customer_type);
+        if (!priceResult.hasError) {
+            uniquePrices.push(priceResult.price);
+        }
+    }
+
+    return [...new Set(uniquePrices)].length > 1;
+}
+
 // ---- normalizeBatches ----
 function normalizeBatches(stockEntry) {
     if (!stockEntry || !stockEntry.batches) {
@@ -313,7 +431,10 @@ function normalizeBatches(stockEntry) {
 function showBatchPriceSelectionModal(product, stockEntry, batches, currentCustomer = null) {
     const tbody = document.getElementById('batch-price-list');
     const modalElement = document.getElementById('batchPriceModal');
-    const modal = new bootstrap.Modal(modalElement);
+    const modal = bootstrap.Modal.getOrCreateInstance(modalElement, {
+        backdrop: 'static',
+        keyboard: false,
+    });
 
     const allowedPriceTypes = window.PosConfig.permissions.allowedPriceTypes;
     const selectedLocationId = window.selectedLocationId;
@@ -335,57 +456,46 @@ function showBatchPriceSelectionModal(product, stockEntry, batches, currentCusto
         return;
     }
     activeModalProductId = product.id;
+    setBatchPriceModalOpen(true);
 
     // Reset modal content
     tbody.innerHTML = '';
     const batchRows = [];
 
-    // Filter and sort batches
-    const validBatches = batches.filter(batch => {
+    // Filter and sort batches (soonest expiry first — FEFO)
+    const validBatches = sortBatchesByExpiryAsc(batches.filter(batch => {
         const locationBatch = batch.location_batches.find(lb => lb.location_id ==
             selectedLocationId);
         const paid = parseFloat(locationBatch?.quantity || 0) || 0;
         const free = parseFloat(locationBatch?.free_quantity || 0) || 0;
         return locationBatch && (paid + free) > 0;
-    }).sort((a, b) => parseInt(b.id) - parseInt(a.id));
+    }));
 
     if (validBatches.length === 0) {
-        // Calculate colspan based on allowed price types
-        const colspanCount = 3 + allowedPriceTypes.length; // # + Batch No + Quantity + Action + price columns
+        const colspanCount = getBatchPriceModalColspan(allowedPriceTypes);
         tbody.innerHTML =
             `<tr><td colspan="${colspanCount}" class="text-center text-danger">No batches available</td></tr>`;
         modal.show();
         setTimeout(() => modal.hide(), 1500);
-        activeModalProductId = null;
         return;
     }
 
     // Populate modal with batches
-    validBatches.forEach((batch, index) => {
+    validBatches.forEach((batch) => {
         const locationBatch = batch.location_batches.find(lb => lb.location_id ==
             selectedLocationId);
 
-        // Build price columns HTML based on allowed price types
+        // Build price columns: MRP, then Retail (wholesale/special omitted in batch picker)
         let priceColumnsHtml = '';
-
-        if (allowedPriceTypes.includes('retail')) {
-            const retailPrice = batch.retail_price ? parseFloat(batch.retail_price).toFixed(2) : 'N/A';
-            priceColumnsHtml += `<td class="text-center">Rs ${retailPrice}</td>`;
-        }
-
-        if (allowedPriceTypes.includes('wholesale')) {
-            const wholesalePrice = batch.wholesale_price ? parseFloat(batch.wholesale_price).toFixed(2) : 'N/A';
-            priceColumnsHtml += `<td class="text-center">Rs ${wholesalePrice}</td>`;
-        }
-
-        if (allowedPriceTypes.includes('special')) {
-            const specialPrice = batch.special_price ? parseFloat(batch.special_price).toFixed(2) : 'N/A';
-            priceColumnsHtml += `<td class="text-center">Rs ${specialPrice}</td>`;
-        }
 
         if (allowedPriceTypes.includes('max_retail')) {
             const maxRetailPrice = batch.max_retail_price ? parseFloat(batch.max_retail_price).toFixed(2) : 'N/A';
             priceColumnsHtml += `<td class="text-center">Rs ${maxRetailPrice}</td>`;
+        }
+
+        if (allowedPriceTypes.includes('retail')) {
+            const retailPrice = batch.retail_price ? parseFloat(batch.retail_price).toFixed(2) : 'N/A';
+            priceColumnsHtml += `<td class="text-center fw-bold">Rs ${retailPrice}</td>`;
         }
 
         // Get customer-type-based price for this batch
@@ -419,8 +529,8 @@ function showBatchPriceSelectionModal(product, stockEntry, batches, currentCusto
 
         const tr = document.createElement('tr');
         tr.innerHTML = `
-            <td><strong>[${index + 1}]</strong></td>
             <td>${batch.batch_no}</td>
+            <td class="text-center">${formatBatchExpiryCell(batch.expiry_date)}</td>
             ${priceColumnsHtml}
             <td class="text-center">
                 ${locationPaidQty} PC(s)
@@ -468,6 +578,11 @@ function showBatchPriceSelectionModal(product, stockEntry, batches, currentCusto
 
             // Check if this is an IMEI product
             if (product.is_imei_or_serial_no === 1) {
+                if (window._pendingMobileAddAfterBatch &&
+                    String(window._pendingMobileAddAfterBatch.productStock?.product?.id) === String(product.id)) {
+                    window._pendingMobileAddAfterBatch = null;
+                }
+
                 // Close batch modal first
                 if (isModalOpen) {
                     modal.hide();
@@ -480,8 +595,31 @@ function showBatchPriceSelectionModal(product, stockEntry, batches, currentCusto
                         selectedBatch.id);
                 }, 300);
             } else {
-                // Add non-IMEI product to billing with quantity 1
+                const pendingMobile = window._pendingMobileAddAfterBatch;
+                const isMobileQtyFlow = pendingMobile &&
+                    String(pendingMobile.productStock?.product?.id) === String(product.id) &&
+                    pendingMobile.flow === 'qty';
 
+                if (isMobileQtyFlow) {
+                    window._pendingMobileAddAfterBatch = null;
+                    if (isModalOpen) {
+                        modal.hide();
+                        isModalOpen = false;
+                    }
+                    setTimeout(() => {
+                        if (typeof window.showMobileQuantityModal === 'function') {
+                            window.showMobileQuantityModal(pendingMobile.productStock, {
+                                selectedBatch,
+                                productWithBatchPrices,
+                                customerPrice,
+                                stockEntry,
+                            });
+                        }
+                    }, 300);
+                    return;
+                }
+
+                // Desktop / scan path: add with quantity 1
                 window.Pos.Billing.addProductToBillingBody(
                     productWithBatchPrices,
                     stockEntry,
@@ -489,7 +627,7 @@ function showBatchPriceSelectionModal(product, stockEntry, batches, currentCusto
                     selectedBatch.id,
                     qty,
                     resolveAutoPriceType(currentCustomer.customer_type, selectedBatch, productWithBatchPrices),
-                    1, // Quantity is 1 when selecting from modal
+                    1,
                     [],
                     null,
                     null,
@@ -534,6 +672,11 @@ function showBatchPriceSelectionModal(product, stockEntry, batches, currentCusto
         document.removeEventListener('keydown', handleKeyDown);
         isModalOpen = false;
         activeModalProductId = null;
+        setBatchPriceModalOpen(false);
+        if (window._pendingMobileAddAfterBatch &&
+            String(window._pendingMobileAddAfterBatch.productStock?.product?.id) === String(product.id)) {
+            window._pendingMobileAddAfterBatch = null;
+        }
         tbody.removeEventListener('click', handleBatchSelect);
         modalElement.removeEventListener('shown.bs.modal', shownHandler);
         modalElement.removeEventListener('hidden.bs.modal', hiddenHandler);
@@ -1439,26 +1582,32 @@ function showProductModal(product, stockEntry, row) {
 
     const formatAmountWithSeparators = window.formatAmountWithSeparators;
 
+    const canManageTax = window.canManageTax === true;
+
     // Tax selection state for modal (supports None + configured rates)
-    const currentRowTaxPercent = row ? (parseFloat(row.getAttribute('data-tax-percent')) || 0) : (parseFloat(product.tax_percent || 0) || 0);
-    const fallbackProductTaxPercent = parseFloat(product.tax_percent || 0) || 0;
+    const currentRowTaxPercent = canManageTax
+        ? (row ? (parseFloat(row.getAttribute('data-tax-percent')) || 0) : (parseFloat(product.tax_percent || 0) || 0))
+        : 0;
+    const fallbackProductTaxPercent = canManageTax ? (parseFloat(product.tax_percent || 0) || 0) : 0;
 
-    let taxOptionsHtml = '<option value="none" data-rate="0"' + (currentRowTaxPercent <= 0 ? ' selected' : '') + '>None (No Tax)</option>';
+    let taxOptionsHtml = '';
+    if (canManageTax) {
+        taxOptionsHtml = '<option value="none" data-rate="0"' + (currentRowTaxPercent <= 0 ? ' selected' : '') + '>None (No Tax)</option>';
 
-    // If global tax rates are already available, render them immediately.
-    if (Array.isArray(window.posTaxRates) && window.posTaxRates.length > 0) {
-        taxOptionsHtml += window.posTaxRates.map((tax) => {
-            const rate = parseFloat(tax.rate);
-            if (Number.isNaN(rate)) {
-                return '';
-            }
-            const isSelected = Math.abs(rate - currentRowTaxPercent) < 0.001;
-            const safeName = String(tax.name || 'Tax').replace(/"/g, '&quot;');
-            return `<option value="${tax.id}" data-rate="${rate.toFixed(2)}"${isSelected ? ' selected' : ''}>${safeName} @ ${rate.toFixed(2)}%</option>`;
-        }).join('');
-    } else if (currentRowTaxPercent > 0 || fallbackProductTaxPercent > 0) {
-        const selectedRate = currentRowTaxPercent > 0 ? currentRowTaxPercent : fallbackProductTaxPercent;
-        taxOptionsHtml += `<option value="current_tax" data-rate="${selectedRate.toFixed(2)}" selected>Current Tax @ ${selectedRate.toFixed(2)}%</option>`;
+        if (Array.isArray(window.posTaxRates) && window.posTaxRates.length > 0) {
+            taxOptionsHtml += window.posTaxRates.map((tax) => {
+                const rate = parseFloat(tax.rate);
+                if (Number.isNaN(rate)) {
+                    return '';
+                }
+                const isSelected = Math.abs(rate - currentRowTaxPercent) < 0.001;
+                const safeName = String(tax.name || 'Tax').replace(/"/g, '&quot;');
+                return `<option value="${tax.id}" data-rate="${rate.toFixed(2)}"${isSelected ? ' selected' : ''}>${safeName} @ ${rate.toFixed(2)}%</option>`;
+            }).join('');
+        } else if (currentRowTaxPercent > 0 || fallbackProductTaxPercent > 0) {
+            const selectedRate = currentRowTaxPercent > 0 ? currentRowTaxPercent : fallbackProductTaxPercent;
+            taxOptionsHtml += `<option value="current_tax" data-rate="${selectedRate.toFixed(2)}" selected>Current Tax @ ${selectedRate.toFixed(2)}%</option>`;
+        }
     }
 
     if (locationBatches.length > 0) {
@@ -1612,12 +1761,13 @@ function showProductModal(product, stockEntry, row) {
                     ${batchOptions}
                 </select>
             </div>
-            <div class="mb-3">
+            ${canManageTax ? `<div class="mb-3">
                 <label class="form-label fw-bold text-muted small">TAX</label>
                 <select id="modalTaxDropdown" class="form-select">
                     ${taxOptionsHtml}
                 </select>
                 <small class="text-muted">Choose a tax rate or select None to disable tax for this line.</small>
+            </div>` : ''}
                 <style>
                     .batch-dropdown {
                         font-size: 1rem;
@@ -1692,7 +1842,7 @@ function showProductModal(product, stockEntry, row) {
 
     // Load tax rates lazily for POS modal when not preloaded.
     const taxDropdown = document.getElementById('modalTaxDropdown');
-    if (taxDropdown && (!Array.isArray(window.posTaxRates) || window.posTaxRates.length === 0)) {
+    if (window.canManageTax === true && taxDropdown && (!Array.isArray(window.posTaxRates) || window.posTaxRates.length === 0)) {
         fetch('/tax-rates-get-all', {
             method: 'GET',
             headers: {
@@ -1847,14 +1997,18 @@ function showProductModal(product, stockEntry, row) {
             }
 
             const selection = getPriceSelectionFromBatchDropdown();
-            const selectedTaxOption = taxDropdown ? taxDropdown.selectedOptions[0] : null;
-            const selectedTaxPercent = selectedTaxOption
-                ? (parseFloat(selectedTaxOption.getAttribute('data-rate')) || 0)
-                : currentRowTaxPercent;
+            const selectedTaxOption = (window.canManageTax === true && taxDropdown) ? taxDropdown.selectedOptions[0] : null;
+            const selectedTaxPercent = window.canManageTax === true
+                ? (selectedTaxOption
+                    ? (parseFloat(selectedTaxOption.getAttribute('data-rate')) || 0)
+                    : currentRowTaxPercent)
+                : 0;
             const selectedTaxType = selectedTaxPercent > 0 ? 'exclusive' : 'inclusive';
-            const selectedTaxLabel = selectedTaxOption
-                ? (selectedTaxOption.textContent || '').trim()
-                : (selectedTaxPercent > 0 ? `Tax ${selectedTaxPercent.toFixed(2)}%` : 'None (No Tax)');
+            const selectedTaxLabel = window.canManageTax === true
+                ? (selectedTaxOption
+                    ? (selectedTaxOption.textContent || '').trim()
+                    : (selectedTaxPercent > 0 ? `Tax ${selectedTaxPercent.toFixed(2)}%` : 'None (No Tax)'))
+                : 'None (No Tax)';
 
             if (selection && selection.price > 0) {
                 const priceInput = selectedRow.querySelector('.price-input.unit-price');
@@ -1902,17 +2056,23 @@ function showProductModal(product, stockEntry, row) {
                     }
                 }
 
-                // Apply chosen tax to this cart line.
-                selectedRow.setAttribute('data-tax-percent', selectedTaxPercent.toFixed(2));
-                selectedRow.setAttribute('data-selling-price-tax-type', selectedTaxType);
-                selectedRow.setAttribute('data-tax-label', selectedTaxLabel || 'None (No Tax)');
+                if (window.canManageTax === true) {
+                    selectedRow.setAttribute('data-tax-percent', selectedTaxPercent.toFixed(2));
+                    selectedRow.setAttribute('data-selling-price-tax-type', selectedTaxType);
+                    selectedRow.setAttribute('data-tax-label', selectedTaxLabel || 'None (No Tax)');
 
-                const vatCell = selectedRow.querySelector('.vat-amount');
-                if (vatCell) {
-                    const hoverText = selectedTaxPercent > 0
-                        ? `${selectedTaxLabel} (${selectedTaxType})`
-                        : 'None (No Tax)';
-                    vatCell.setAttribute('title', hoverText);
+                    const vatCell = selectedRow.querySelector('.vat-amount');
+                    if (vatCell) {
+                        const hoverText = selectedTaxPercent > 0
+                            ? `${selectedTaxLabel} (${selectedTaxType})`
+                            : 'None (No Tax)';
+                        vatCell.setAttribute('title', hoverText);
+                    }
+                } else {
+                    selectedRow.setAttribute('data-tax-percent', '0.00');
+                    selectedRow.setAttribute('data-selling-price-tax-type', 'inclusive');
+                    selectedRow.setAttribute('data-tax-label', 'None (No Tax)');
+                    selectedRow.setAttribute('data-row-tax-amount', '0.00');
                 }
 
                 // Let cart module recalc discounts/totals
@@ -1972,7 +2132,12 @@ async function getCustomerPreviousPrice(customerId, productId) {
 // ---- Window exports ----
 window.addProductToTable              = addProductToTable;
 window.normalizeBatches               = normalizeBatches;
-window.showBatchPriceSelectionModal   = showBatchPriceSelectionModal;
+window.isBatchPriceSelectionPending       = isBatchPriceSelectionPending;
+window.notifyBatchSelectionRequired       = notifyBatchSelectionRequired;
+window.productRequiresBatchPriceSelection = productRequiresBatchPriceSelection;
+window.getSellableBatchesForLocation      = getSellableBatchesForLocation;
+window.showBatchPriceSelectionModal       = showBatchPriceSelectionModal;
+window.resolveAutoPriceType               = resolveAutoPriceType;
 window.showImeiSelectionModal         = showImeiSelectionModal;
 window.showProductModal               = showProductModal;
 window.getCustomerPreviousPrice       = getCustomerPreviousPrice;

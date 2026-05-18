@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\View;
 use App\Models\Setting;
+use App\Support\TaxSettingsAccess;
 use App\Models\Sale;
 use App\Models\Purchase;
 use App\Observers\SaleObserver;
@@ -51,6 +52,7 @@ class AppServiceProvider extends ServiceProvider
                 });
 
                 $view->with('activeSetting', $activeSetting);
+                $view->with('canManageTax', TaxSettingsAccess::canManage());
             });
         }
 

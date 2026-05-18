@@ -158,6 +158,51 @@ class Sale extends Model
         return $totalSoldQuantity - $totalReturnedQuantity;
     }
 
+    /**
+     * Returned qty already processed for one invoice line (matches product, batch, and line price).
+     */
+    public function getReturnedQuantityForSaleLine(
+        SalesProduct $line,
+        string $field = 'quantity',
+        ?int $excludeSalesReturnId = null
+    ): float {
+        $query = SalesReturnProduct::query()
+            ->whereHas('salesReturn', function ($q) use ($excludeSalesReturnId) {
+                $q->where('sale_id', $this->id);
+                if ($excludeSalesReturnId) {
+                    $q->where('id', '!=', $excludeSalesReturnId);
+                }
+            })
+            ->where('product_id', $line->product_id)
+            ->where('return_price', $line->price);
+
+        if ($line->batch_id) {
+            $query->where('batch_id', $line->batch_id);
+        } else {
+            $query->whereNull('batch_id');
+        }
+
+        return (float) $query->sum($field);
+    }
+
+    /** Remaining returnable paid qty for a single sales_products row. */
+    public function getCurrentSaleLineQuantity(SalesProduct $line, ?int $excludeSalesReturnId = null): float
+    {
+        $sold = (float) ($line->quantity ?? 0);
+        $returned = $this->getReturnedQuantityForSaleLine($line, 'quantity', $excludeSalesReturnId);
+
+        return max(0, $sold - $returned);
+    }
+
+    /** Remaining returnable free qty for a single sales_products row. */
+    public function getCurrentSaleLineFreeQuantity(SalesProduct $line, ?int $excludeSalesReturnId = null): float
+    {
+        $sold = (float) ($line->free_quantity ?? 0);
+        $returned = $this->getReturnedQuantityForSaleLine($line, 'free_quantity', $excludeSalesReturnId);
+
+        return max(0, $sold - $returned);
+    }
+
     // ============================================
     // SALE ORDER SPECIFIC METHODS
     // ============================================

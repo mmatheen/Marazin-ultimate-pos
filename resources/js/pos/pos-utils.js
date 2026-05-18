@@ -83,7 +83,16 @@ function safePercentage(numerator, denominator, defaultValue = 0) {
 // ---- Formatting ----
 
 function formatAmountWithSeparators(amount) {
-    return new Intl.NumberFormat().format(amount);
+    const num = typeof amount === 'number'
+        ? amount
+        : parseFloat(String(amount ?? '').replace(/[\s\u00a0\u202f,]/g, ''));
+    if (!Number.isFinite(num)) {
+        return '0.00';
+    }
+    return new Intl.NumberFormat(undefined, {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+    }).format(num);
 }
 
 function parseFormattedAmount(formattedAmount) {

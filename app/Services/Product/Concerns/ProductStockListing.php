@@ -514,6 +514,7 @@ trait ProductStockListing
                             'retail_price' => $batch->retail_price ?? 0,
                             'max_retail_price' => $batch->max_retail_price ?? 0,
                             'expiry_date' => $batch->expiry_date,
+                            'created_at' => $batch->created_at,
                             'total_batch_quantity' => $allowDecimal
                                 ? round((float)$batchQty, 2)
                                 : (int)$batchQty,

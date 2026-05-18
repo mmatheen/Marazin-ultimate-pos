@@ -15,7 +15,11 @@
         href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,400;0,500;0,700;0,900;1,400;1,500;1,700&display=swap"
         rel="stylesheet">
     @include('layout.partials.head-styles-core', ['withAdminAssets' => false])
-    <link rel="stylesheet" href="{{ asset('assets/css/pos_page_style/pos-main.css') }}">
+    {{-- POS styles: base → desktop → tablet → mobile (see pos-main.css for docs) --}}
+    <link rel="stylesheet" href="{{ asset('assets/css/pos_page_style/pos-base.css') }}">
+    <link rel="stylesheet" href="{{ asset('assets/css/pos_page_style/pos-desktop.css') }}">
+    <link rel="stylesheet" href="{{ asset('assets/css/pos_page_style/pos-tablet.css') }}">
+    <link rel="stylesheet" href="{{ asset('assets/css/pos_page_style/pos-mobile.css') }}">
 
     <!-- Sales Rep Payment Button Control CSS -->
     <style>
@@ -47,6 +51,15 @@
 
         #mobileProductModal {
             z-index: 10400 !important;
+        }
+
+        /* Batch picker above mobile product grid, below qty modal */
+        #batchPriceModal {
+            z-index: 10550 !important;
+        }
+
+        .modal-backdrop.batch-price-modal-backdrop {
+            z-index: 10549 !important;
         }
 
         /* Mobile Quantity Modal - highest z-index */
@@ -550,7 +563,7 @@
                                 {{-- Row 1: customer + product search — same visual height (40px desktop) --}}
                                 <div class="row pos-customer-search-header align-items-stretch g-0 gx-md-2 gy-2 gy-md-0">
                                     <div class="col-md-5 pe-md-2 d-flex align-items-stretch">
-                                        <div class="d-flex align-items-stretch customer-select2 pos-customer-row w-100">
+                                        <div class="d-flex align-items-stretch customer-select2 pos-customer-row pos-customer-input-group w-100">
                                             <span class="d-inline d-md-none me-2 text-muted flex-shrink-0 align-self-center" aria-hidden="true"><i class="fas fa-user"></i></span>
                                             <div class="pos-customer-select-wrap flex-grow-1 min-w-0">
                                                 <select class="form-control selectBox" id="customer-id">
@@ -668,7 +681,9 @@
                                                     @endif
                                                     <th class="text-center" colspan="2">Discount</th>
                                                     <th class="text-center">Unit Price</th>
+                                                    @if($canManageTax ?? false)
                                                     <th class="text-center">VAT</th>
+                                                    @endif
                                                     <th class="text-center">Subtotal</th>
                                                     <th class="text-center" style="color: red;">X</th>
                                                 </tr>
@@ -681,6 +696,8 @@
                                 </div>
                             </div>
 
+                            <!-- Billing summary — hidden until at least one product in cart -->
+                            <div id="pos-billing-summary-panel" class="pos-billing-summary-panel d-none">
                             <!-- Item Counter Section - Fixed at bottom of billing card (desktop) -->
                             <div class="row d-none d-md-flex pos-desktop-item-counter"
                                 style="margin: 0; border-top: 2px solid #ddd; background-color: #f8f9fa;">
@@ -709,7 +726,9 @@
                                         <p id="total-amount" class="form-control form-control-sm mb-0"
                                             style="height: 30px; line-height: 20px; font-size: 13px; font-weight: 600;">
                                             0.00</p>
+                                        @if($canManageTax ?? false)
                                         <small class="text-muted d-block pos-billing-vat-hint">VAT: Rs <span id="vat-total-amount">0.00</span></small>
+                                        @endif
                                     </div>
                                 </div>
                                 <div class="col-md-2">
@@ -793,6 +812,7 @@
                                     </div>
                                 </div>
                             </div>
+                            </div><!-- /pos-billing-summary-panel -->
                         </div>
                     </div>
 
@@ -1862,7 +1882,7 @@
     </div>
 
     <!-- Batch Price Selection Modal -->
-    <div class="modal fade" id="batchPriceModal" tabindex="-1">
+    <div class="modal fade" id="batchPriceModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
         <div class="modal-dialog modal-dialog-centered modal-lg">
             <div class="modal-content">
                 <div class="modal-header">
@@ -1873,19 +1893,13 @@
                     <table class="table table-bordered">
                         <thead>
                             <tr>
-                                <th>#</th>
                                 <th>Batch No</th>
+                                <th>Expiry Date</th>
+                                @can('select max retail price')
+                                <th>MRP</th>
+                                @endcan
                                 @can('select retail price')
                                 <th>Retail Price</th>
-                                @endcan
-                                @can('select wholesale price')
-                                <th>Wholesale Price</th>
-                                @endcan
-                                @can('select special price')
-                                <th>Special Price</th>
-                                @endcan
-                                @can('select max retail price')
-                                <th>Max Retail Price</th>
                                 @endcan
                                 <th>Quantity</th>
                                 <th>Action</th>
@@ -2021,15 +2035,7 @@
     @include('sell.partials.pos-notifications')
     @include('sell.partials.pos-config')
 
-    {{--
-        POS JavaScript load order (do not change lightly):
-        1) Vendor scripts → pos-vendor-scripts (jQuery + layout/partials/vendor-scripts-shared-stack + admin-suffix + POS CDN extras)
-        2) Notifications → pos-notifications
-        3) Config bridge → pos-config (window.PosConfig + globals)
-        4) POS modules (Vite) → resources/js/pos/*.js
-        5) Customer includes → contact.* partials (AJAX + modals)
-    --}}
-
+  
     <!-- POS JS Modules -->
     @vite('resources/js/pos/pos-utils.js')
     @vite('resources/js/pos/pos-cache.js')
@@ -2073,58 +2079,60 @@
 
     </div><!-- /.pos-mobile-scroll-wrapper -->
 
-    <!-- Mobile/Tablet Order Summary – fixed above PAY TOTAL bar (outside scroll so "X Items" / totals always visible) -->
-    <div class="d-lg-none pos-mobile-order-summary-fixed">
-        <div class="pos-mobile-order-summary-card card border-0 shadow-sm mb-0" style="border-radius: 12px; overflow: hidden;">
+    <!-- Mobile checkout dock: summary card + PAY TOTAL bar -->
+    <div class="pos-mobile-checkout-dock d-lg-none">
+    <div id="pos-mobile-order-summary-panel" class="pos-mobile-order-summary-wrap d-none">
+        <div class="pos-mobile-order-summary-card card border-0 shadow-sm mb-0">
             <div class="card-body p-3 pos-mobile-summary-body">
                 <!-- Top row: X Items | Details tabs + Fixed | Percent toggle -->
-                <div class="d-flex align-items-center justify-content-between mb-3 pos-mobile-summary-tabs">
-                    <div class="d-flex align-items-center gap-2">
+                <div class="pos-mobile-summary-header">
+                    <div class="pos-mobile-summary-header-left">
                         <span class="pos-mobile-tab pos-mobile-tab-active">
-                            <i class="fas fa-circle text-primary me-1" style="font-size: 0.4rem; vertical-align: middle;"></i>
+                            <i class="fas fa-circle text-primary" aria-hidden="true"></i>
                             <span id="mobile-summary-items-count">0</span> Items
                         </span>
-                        <span class="pos-mobile-tab" data-bs-toggle="collapse" data-bs-target="#posMobileDetailsCollapse" aria-expanded="false">
-                            <i class="fas fa-info-circle text-muted me-1"></i>Details
-                        </span>
+                        <button type="button" class="pos-mobile-tab pos-mobile-tab-details" data-bs-toggle="collapse" data-bs-target="#posMobileDetailsCollapse" aria-expanded="false">
+                            <i class="fas fa-info-circle" aria-hidden="true"></i> Details
+                        </button>
                     </div>
-                    <div class="btn-group btn-group-sm pos-mobile-discount-toggle" role="group">
-                        <button type="button" class="btn btn-primary btn-sm active" id="mobile-fixed-discount-btn" style="font-size: 10px; padding: 4px 10px;">Fixed</button>
-                        <button type="button" class="btn btn-outline-secondary btn-sm" id="mobile-percentage-discount-btn" style="font-size: 10px; padding: 4px 10px;">Percent (%)</button>
+                    <div class="btn-group btn-group-sm pos-mobile-discount-toggle" role="group" aria-label="Discount type">
+                        <button type="button" class="btn btn-sm active" id="mobile-fixed-discount-btn">Fixed</button>
+                        <button type="button" class="btn btn-sm" id="mobile-percentage-discount-btn">Percent (%)</button>
                     </div>
                 </div>
-                <!-- Total Subtotal | Discount same row -->
-                <div class="row g-2 mb-2 pos-mobile-summary-row">
-                    <div class="col-6">
-                        <div class="text-muted small">Total Subtotal</div>
-                        <div id="mobile-total-amount-text" class="fw-bold text-dark" style="font-size: 1.1rem;">Rs. 0.00</div>
+                <!-- Subtotal | Discount same row -->
+                <div class="pos-mobile-summary-metrics">
+                    <div class="pos-mobile-summary-metric">
+                        <span class="pos-mobile-summary-label">Total Subtotal</span>
+                        <span id="mobile-total-amount-text" class="pos-mobile-summary-value">Rs. 0.00</span>
                     </div>
-                    <div class="col-6 text-end">
-                        <div class="text-muted small">Discount</div>
-                        <div id="mobile-total-discount-text" class="fw-semibold text-danger" style="font-size: 1rem;">Rs. 0.00</div>
+                    <div class="pos-mobile-summary-metric pos-mobile-summary-metric-end">
+                        <span class="pos-mobile-summary-label">Discount</span>
+                        <span id="mobile-total-discount-text" class="pos-mobile-summary-value pos-mobile-summary-value-discount">Rs. 0.00</span>
                     </div>
                 </div>
                 <!-- Global discount: label + input inline (no detached floating field) -->
-                <div class="d-flex align-items-center gap-2 mb-2 pos-mobile-discount-row">
-                    <span class="text-muted small">Discount amount</span>
-                    <input type="text" id="mobile-global-discount" class="form-control form-control-sm" placeholder="0" value="0" style="max-width: 72px; height: 30px; font-weight: 600;">
+                <div class="pos-mobile-summary-line">
+                    <span class="pos-mobile-summary-label">Discount amount</span>
+                    <input type="text" id="mobile-global-discount" class="form-control form-control-sm pos-mobile-summary-discount-input" placeholder="0" value="0" inputmode="decimal">
                 </div>
-                <!-- Add Shipping: white button blue border + edit -->
-                <div class="d-flex align-items-center gap-2 mb-2">
-                    <button type="button" class="btn pos-mobile-add-shipping-btn flex-grow-1" data-bs-toggle="modal" data-bs-target="#shippingModal" id="shippingButtonMobile" title="Add shipping">
-                        <i class="fas fa-truck me-1"></i>Add Shipping
+                <div class="pos-mobile-shipping-row">
+                    <button type="button" class="btn btn-sm pos-mobile-shipping-btn w-100" data-bs-toggle="modal" data-bs-target="#shippingModal" id="shippingButtonMobile" title="Shipping">
+                        <i class="fas fa-truck" aria-hidden="true"></i>
+                        <span id="shippingButtonMobileLabel">Add Shipping</span>
                     </button>
-                    <button type="button" class="btn pos-mobile-shipping-edit-btn" data-bs-toggle="modal" data-bs-target="#shippingModal" title="Edit shipping"><i class="fas fa-edit"></i></button>
                 </div>
                 <!-- Final Total -->
-                <div class="d-flex justify-content-between align-items-center pt-2 border-top pos-mobile-final-row">
-                    <span class="fw-bold">Final Total</span>
-                    <span id="mobile-final-total-inline" class="fw-bold text-primary" style="font-size: 1.1rem;">Rs. 0.00</span>
+                <div class="pos-mobile-summary-final">
+                    <span class="pos-mobile-summary-final-label">Final Total</span>
+                    <span id="mobile-final-total-inline" class="pos-mobile-summary-final-value">Rs. 0.00</span>
                 </div>
                 <!-- Details collapse: Total Items + Internal Notes only (Add Shipping is single button above) -->
                 <div class="collapse mt-2" id="posMobileDetailsCollapse">
                     <div class="small text-muted mb-2"><span class="fw-semibold">Total Items:</span> <span id="mobile-total-items-text">0 (0 units)</span></div>
+                    @if($canManageTax ?? false)
                     <div class="small text-muted mb-2"><span class="fw-semibold">VAT:</span> <span id="mobile-vat-amount-text">Rs. 0.00</span></div>
+                    @endif
                     <div class="accordion accordion-flush" id="posMobileAccordion">
                         <div class="accordion-item border-0 border-top">
                             <h2 class="accordion-header">
@@ -2145,25 +2153,25 @@
     </div>
 
     <!-- Mobile/Tablet Bottom Bar – fixed to viewport bottom (outside scrollable content) -->
-    <div class="mobile-bottom-fixed d-lg-none">
+    <div class="mobile-bottom-fixed">
         <div class="mobile-bottom-container">
-            <button type="button" class="btn pos-mobile-pay-full-btn w-100 d-flex align-items-center justify-content-between px-2 py-2" data-bs-toggle="modal" data-bs-target="#mobilePaymentModal">
-                <div class="d-flex align-items-center gap-2 text-start">
-                    <span class="pos-mobile-cart-badge rounded-circle d-flex align-items-center justify-content-center flex-shrink-0" id="mobile-cart-badge">
+            <button type="button" class="btn pos-mobile-pay-full-btn w-100" data-bs-toggle="modal" data-bs-target="#mobilePaymentModal" aria-label="Proceed to payment">
+                <div class="pos-mobile-pay-left">
+                    <span class="pos-mobile-cart-badge rounded-circle d-flex align-items-center justify-content-center flex-shrink-0">
                         <span id="mobile-items-count">0</span>
                     </span>
-                    <div class="min-width-0">
-                        <div class="text-white text-uppercase fw-semibold mb-0 pos-mobile-final-label">PAY TOTAL</div>
-                        <div class="text-white fw-bold lh-1 mt-0 pos-mobile-final-amount" id="mobile-final-total">Rs. 0.00</div>
+                    <div class="pos-mobile-pay-text">
+                        <div class="pos-mobile-final-label">PAY TOTAL</div>
+                        <div class="pos-mobile-final-amount" id="mobile-final-total">Rs. 0.00</div>
                     </div>
                 </div>
-                <span class="text-white fw-semibold d-flex align-items-center gap-1" style="font-size: 0.9rem;">
-                    Proceed <i class="fas fa-chevron-right"></i>
+                <span class="pos-mobile-proceed-btn">
+                    Proceed <i class="fas fa-chevron-right" aria-hidden="true"></i>
                 </span>
             </button>
-            <p class="text-white mb-0 text-center small pos-mobile-pay-footer">Select payment method on next step</p>
         </div>
     </div>
+    </div><!-- /.pos-mobile-checkout-dock -->
 
 </body>
 

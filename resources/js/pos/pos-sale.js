@@ -448,13 +448,16 @@ function buildProductPayloadFromRow(productRow) {
     const customNameEl = productRow.find('.custom-name-input');
     const customName = customNameEl.length > 0 ? (customNameEl.val()?.trim() || null) : null;
     const selectedPriceType = (productRow.find('.selected-price-type').text().trim() || window.priceType || 'retail');
-    const taxPercent = parseFloat(productRow.attr('data-tax-percent')) || 0;
-    const sellingPriceTaxType = ((productRow.attr('data-selling-price-tax-type') || 'inclusive') + '').toLowerCase();
+    const canManageTax = window.canManageTax === true;
+    const taxPercent = canManageTax ? (parseFloat(productRow.attr('data-tax-percent')) || 0) : 0;
+    const sellingPriceTaxType = canManageTax
+        ? ((productRow.attr('data-selling-price-tax-type') || 'inclusive') + '').toLowerCase()
+        : 'inclusive';
     const subtotalValue = parseFormattedAmount(productRow.find('.subtotal').text().trim());
     const quantityValue = parseFloat(quantity) || 0;
     const unitPriceValue = parseFormattedAmount(productRow.find('.price-input').val().trim());
     const baseSubtotal = quantityValue * unitPriceValue;
-    const lineTaxAmount = sellingPriceTaxType === 'exclusive'
+    const lineTaxAmount = (canManageTax && sellingPriceTaxType === 'exclusive')
         ? Math.max(0, subtotalValue - baseSubtotal)
         : 0;
 
@@ -1204,13 +1207,42 @@ function updateShippingData() {
 }
 
 function updateShippingButtonState() {
+    const hasShipping = (window.shippingData.shipping_charges > 0)
+        || window.shippingData.shipping_details
+        || window.shippingData.shipping_address;
+    const chargeLabel = formatCurrency(window.shippingData.shipping_charges || 0);
+
     const shippingButton = $('#shippingButton');
-    if (window.shippingData.shipping_charges > 0 || window.shippingData.shipping_details || window.shippingData.shipping_address) {
+    if (hasShipping) {
         shippingButton.removeClass('btn-outline-info').addClass('btn-info');
-        shippingButton.html('<i class="fas fa-shipping-fast"></i> Shipping (' + formatCurrency(window.shippingData.shipping_charges) + ')');
+        shippingButton.html('<i class="fas fa-shipping-fast"></i> Shipping (' + chargeLabel + ')');
     } else {
         shippingButton.removeClass('btn-info').addClass('btn-outline-info');
         shippingButton.html('<i class="fas fa-shipping-fast"></i> Shipping');
+    }
+
+    const mobileShippingButton = $('#shippingButtonMobile');
+    const mobileLabel = $('#shippingButtonMobileLabel');
+    if (mobileShippingButton.length) {
+        if (hasShipping) {
+            mobileShippingButton.addClass('has-shipping');
+            if (mobileLabel.length) {
+                mobileLabel.text('Shipping (' + chargeLabel + ')');
+            } else {
+                mobileShippingButton.html(
+                    '<i class="fas fa-truck" aria-hidden="true"></i><span id="shippingButtonMobileLabel">Shipping (' + chargeLabel + ')</span>'
+                );
+            }
+        } else {
+            mobileShippingButton.removeClass('has-shipping');
+            if (mobileLabel.length) {
+                mobileLabel.text('Add Shipping');
+            } else {
+                mobileShippingButton.html(
+                    '<i class="fas fa-truck" aria-hidden="true"></i><span id="shippingButtonMobileLabel">Add Shipping</span>'
+                );
+            }
+        }
     }
 }
 

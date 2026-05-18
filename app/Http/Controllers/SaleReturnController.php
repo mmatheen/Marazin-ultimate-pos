@@ -24,6 +24,9 @@ use Carbon\Carbon;
 
 class SaleReturnController extends Controller
 {
+    /** Walk-in customers are paid/refunded at the counter — no credit ledger or due balance. */
+    private const WALK_IN_CUSTOMER_ID = 1;
+
     protected $unifiedLedgerService;
 
     function __construct(UnifiedLedgerService $unifiedLedgerService)
@@ -111,6 +114,7 @@ class SaleReturnController extends Controller
             'products.*.return_price' => 'required|numeric',
             'products.*.subtotal' => 'required|numeric',
             'products.*.batch_id' => 'nullable|exists:batches,id',
+            'products.*.sale_product_id' => 'nullable|exists:sales_products,id',
             'products.*.price_type' => 'required|string',
             'products.*.discount' => 'nullable|numeric',
             'products.*.tax' => 'nullable|numeric',
@@ -131,6 +135,33 @@ class SaleReturnController extends Controller
             return response()->json(['status' => 400, 'errors' => $validator->messages()]);
         }
 
+        // Resolve location: with-bill → always from original sale; without-bill → user-selected
+        $resolvedLocationId = (int) $request->location_id;
+        if ($request->sale_id) {
+            $saleForLocation = Sale::withoutGlobalScope(\App\Scopes\LocationScope::class)
+                ->find($request->sale_id);
+            if (!$saleForLocation) {
+                return response()->json([
+                    'status' => 400,
+                    'errors' => ['Invalid sale. Please search the invoice again.'],
+                ]);
+            }
+            $resolvedLocationId = (int) $saleForLocation->location_id;
+        } else {
+            if ($resolvedLocationId <= 0) {
+                return response()->json([
+                    'status' => 400,
+                    'errors' => ['Please select a return location.'],
+                ]);
+            }
+            if (!$request->customer_id) {
+                return response()->json([
+                    'status' => 400,
+                    'errors' => ['Please select a customer for this return.'],
+                ]);
+            }
+        }
+
         // Check for duplicate returns - only for new returns (not updates)
         if (!$id && $request->sale_id) {
             $existingReturns = SalesReturn::where('sale_id', $request->sale_id)->count();
@@ -149,14 +180,34 @@ class SaleReturnController extends Controller
                 ->find($request->sale_id)
             : null;
 
+        if ($sale && (int) $sale->location_id !== $resolvedLocationId) {
+            return response()->json([
+                'status' => 400,
+                'errors' => ['Return location must match the original sale location.'],
+            ]);
+        }
+
         $errors = [];
         if ($sale) {
             foreach ($request->products as $productData) {
-                // Match by both product_id AND batch_id to handle same product with different batches
-                $soldProduct = $sale->products->first(fn ($item) =>
-                    $item->product_id == $productData['product_id'] &&
-                    $item->batch_id   == $productData['batch_id']
-                );
+                // Match exact invoice line (same product can appear twice at different prices)
+                $soldProduct = null;
+                if (!empty($productData['sale_product_id'])) {
+                    $soldProduct = $sale->products->firstWhere('id', (int) $productData['sale_product_id']);
+                }
+                if (!$soldProduct) {
+                    $returnPrice = (float) ($productData['return_price'] ?? $productData['original_price'] ?? 0);
+                    $soldProduct = $sale->products->first(function ($item) use ($productData, $returnPrice) {
+                        if ((int) $item->product_id !== (int) $productData['product_id']) {
+                            return false;
+                        }
+                        $batchMatch = (string) ($item->batch_id ?? '') === (string) ($productData['batch_id'] ?? '');
+                        if (!$batchMatch) {
+                            return false;
+                        }
+                        return abs((float) $item->price - $returnPrice) < 0.01;
+                    });
+                }
 
                 if ($soldProduct) {
                     $returnQty     = floatval($productData['quantity']      ?? 0);
@@ -191,7 +242,7 @@ class SaleReturnController extends Controller
         $salesReturnId = null;
 
         // Use transaction to ensure atomicity
-        DB::transaction(function () use ($request, $id, $sale, &$salesReturnId) {
+        DB::transaction(function () use ($request, $id, $sale, $resolvedLocationId, &$salesReturnId) {
             $stockType       = $request->sale_id ? 'with_bill' : 'without_bill';
             $transactionType = $request->sale_id ? 'sale_return_with_bill' : 'sale_return_without_bill';
 
@@ -206,7 +257,7 @@ class SaleReturnController extends Controller
                 [
                     'sale_id'     => $request->sale_id,
                     'customer_id' => $customerId,
-                    'location_id' => $request->location_id,
+                    'location_id' => $resolvedLocationId,
                     // Set return_date as created_at in Asia/Colombo timezone
                     'return_date' => Carbon::now('Asia/Colombo')->format('Y-m-d H:i:s'),
                     // Always recalculate from persisted return-product rows server-side.
@@ -237,7 +288,7 @@ class SaleReturnController extends Controller
 
             // Process each returned product
             foreach ($request->products as $productData) {
-                $this->processProductReturn($productData, $salesReturn->id, $request->location_id, $stockType, $request->sale_id);
+                $this->processProductReturn($productData, $salesReturn->id, $resolvedLocationId, $stockType, $request->sale_id);
             }
 
             // Line subtotals from persisted rows, then apply header discount from request (matches UI).
@@ -279,80 +330,23 @@ class SaleReturnController extends Controller
             // total_due is set on save by SalesReturn (return_total - total_paid), including when the DB
             // column is not a generated column. Payment status still updates after payments are recorded.
 
-            // Use unified ledger service to record or update the sale return
-            if ($id) {
-                // For updates, use updateSaleReturn method
-                $this->unifiedLedgerService->updateSaleReturn($salesReturn);
+            $isWalkInReturn = $this->isWalkInCustomerId($salesReturn->customer_id);
+
+            // Walk-in: refund at counter — no credit ledger; mark return fully paid via cash payment.
+            if ($isWalkInReturn) {
+                $this->settleWalkInReturnRefund($salesReturn, (bool) $id);
             } else {
-                // For new returns, use recordSaleReturn method
-                $this->unifiedLedgerService->recordSaleReturn($salesReturn);
-            }
-
-            // Process payments if provided
-            if ($request->has('payments') && is_array($request->payments)) {
-                // Generate reference number for payments
-                $referenceNo = 'SRT-' . $salesReturn->id . '-' . time();
-
-                // Delete existing payments if updating
+                // Use unified ledger service to record or update the sale return
                 if ($id) {
-                    Payment::where('reference_id', $salesReturn->id)
-                        ->whereIn('payment_type', ['sale_return_with_bill', 'sale_return_without_bill'])
-                        ->delete();
+                    $this->unifiedLedgerService->updateSaleReturn($salesReturn);
+                } else {
+                    $this->unifiedLedgerService->recordSaleReturn($salesReturn);
                 }
 
-                // Determine payment type based on whether it's with bill or without bill
-                $paymentType = $salesReturn->sale_id ? 'sale_return_with_bill' : 'sale_return_without_bill';
-
-                foreach ($request->payments as $paymentData) {
-                    // Prepare payment data with enhanced cheque handling
-                    $paymentCreateData = [
-                        'payment_date' => Carbon::parse($paymentData['payment_date'])->format('Y-m-d'),
-                        'amount' => $paymentData['amount'],
-                        'payment_method' => $paymentData['payment_method'],
-                        'reference_no' => $referenceNo,
-                        'notes' => $paymentData['notes'] ?? '',
-                        'payment_type' => $paymentType,
-                        'reference_id' => $salesReturn->id,
-                        'customer_id' => $salesReturn->customer_id,
-                    ];
-
-                    // Add payment method specific fields
-                    if ($paymentData['payment_method'] === 'card') {
-                        $paymentCreateData = array_merge($paymentCreateData, [
-                            'card_number' => $paymentData['card_number'] ?? null,
-                            'card_holder_name' => $paymentData['card_holder_name'] ?? null,
-                        ]);
-                    } elseif ($paymentData['payment_method'] === 'cheque') {
-                        $paymentCreateData = array_merge($paymentCreateData, [
-                            'cheque_number' => $paymentData['cheque_number'] ?? null,
-                            'cheque_bank_branch' => $paymentData['cheque_bank_branch'] ?? null,
-                            'cheque_received_date' => isset($paymentData['cheque_received_date']) ?
-                                Carbon::parse($paymentData['cheque_received_date'])->format('Y-m-d') : null,
-                            'cheque_valid_date' => isset($paymentData['cheque_valid_date']) ?
-                                Carbon::parse($paymentData['cheque_valid_date'])->format('Y-m-d') : null,
-                            'cheque_given_by' => $paymentData['cheque_given_by'] ?? null,
-                            // Enhanced cheque fields
-                            'cheque_status' => $paymentData['cheque_status'] ?? 'pending',
-                            'payment_status' => $paymentData['cheque_status'] === 'cleared' ? 'completed' : 'pending',
-                        ]);
-                    } else {
-                        // For cash, bank_transfer, etc.
-                        $paymentCreateData['payment_status'] = 'completed';
-                    }
-
-                    $payment = Payment::create($paymentCreateData);
-
-                    // Create cheque reminders if it's a cheque payment
-                    if ($paymentData['payment_method'] === 'cheque' && isset($paymentData['cheque_valid_date'])) {
-                        $payment->createReminders();
-                    }
-
-                    // Use unified ledger service for return payment recording
-                    $this->unifiedLedgerService->recordReturnPayment($payment, 'customer');
+                // Process payments if provided
+                if ($request->has('payments') && is_array($request->payments)) {
+                    $this->processSaleReturnPayments($request, $salesReturn, (bool) $id);
                 }
-
-                // Update total paid and total due for the sale return
-                $salesReturn->updateTotalDue();
             }
         });
 
@@ -366,6 +360,114 @@ class SaleReturnController extends Controller
             'message' => $message,
             'return_id' => $salesReturnId
         ]);
+    }
+
+    private function isWalkInCustomerId(?int $customerId): bool
+    {
+        return (int) $customerId === self::WALK_IN_CUSTOMER_ID;
+    }
+
+    /**
+     * Walk-in returns are refunded immediately (cash at counter) — full return total is paid, due = 0.
+     */
+    private function settleWalkInReturnRefund(SalesReturn $salesReturn, bool $isUpdate): void
+    {
+        if ($isUpdate) {
+            Payment::where('reference_id', $salesReturn->id)
+                ->whereIn('payment_type', ['sale_return_with_bill', 'sale_return_without_bill'])
+                ->delete();
+        }
+
+        if ((float) $salesReturn->return_total <= 0) {
+            $salesReturn->total_paid = 0;
+            $salesReturn->save();
+
+            return;
+        }
+
+        $paymentType = $salesReturn->sale_id ? 'sale_return_with_bill' : 'sale_return_without_bill';
+        $referenceNo = 'SRT-WI-' . $salesReturn->id . '-' . time();
+
+        Payment::create([
+            'payment_date' => Carbon::now('Asia/Colombo')->format('Y-m-d'),
+            'amount' => $salesReturn->return_total,
+            'payment_method' => 'cash',
+            'reference_no' => $referenceNo,
+            'notes' => 'Walk-in refund at return',
+            'payment_type' => $paymentType,
+            'reference_id' => $salesReturn->id,
+            'customer_id' => self::WALK_IN_CUSTOMER_ID,
+            'payment_status' => 'completed',
+        ]);
+
+        $salesReturn->updateTotalDue();
+    }
+
+    /**
+     * Record refund payments for credit customers (non walk-in).
+     */
+    private function processSaleReturnPayments(Request $request, SalesReturn $salesReturn, bool $isUpdate): void
+    {
+        if (! $request->has('payments') || ! is_array($request->payments)) {
+            return;
+        }
+
+        // Generate reference number for payments
+        $referenceNo = 'SRT-' . $salesReturn->id . '-' . time();
+
+        // Delete existing payments if updating
+        if ($isUpdate) {
+            Payment::where('reference_id', $salesReturn->id)
+                ->whereIn('payment_type', ['sale_return_with_bill', 'sale_return_without_bill'])
+                ->delete();
+        }
+
+        // Determine payment type based on whether it's with bill or without bill
+        $paymentType = $salesReturn->sale_id ? 'sale_return_with_bill' : 'sale_return_without_bill';
+
+        foreach ($request->payments as $paymentData) {
+            $paymentCreateData = [
+                'payment_date' => Carbon::parse($paymentData['payment_date'])->format('Y-m-d'),
+                'amount' => $paymentData['amount'],
+                'payment_method' => $paymentData['payment_method'],
+                'reference_no' => $referenceNo,
+                'notes' => $paymentData['notes'] ?? '',
+                'payment_type' => $paymentType,
+                'reference_id' => $salesReturn->id,
+                'customer_id' => $salesReturn->customer_id,
+            ];
+
+            if ($paymentData['payment_method'] === 'card') {
+                $paymentCreateData = array_merge($paymentCreateData, [
+                    'card_number' => $paymentData['card_number'] ?? null,
+                    'card_holder_name' => $paymentData['card_holder_name'] ?? null,
+                ]);
+            } elseif ($paymentData['payment_method'] === 'cheque') {
+                $paymentCreateData = array_merge($paymentCreateData, [
+                    'cheque_number' => $paymentData['cheque_number'] ?? null,
+                    'cheque_bank_branch' => $paymentData['cheque_bank_branch'] ?? null,
+                    'cheque_received_date' => isset($paymentData['cheque_received_date']) ?
+                        Carbon::parse($paymentData['cheque_received_date'])->format('Y-m-d') : null,
+                    'cheque_valid_date' => isset($paymentData['cheque_valid_date']) ?
+                        Carbon::parse($paymentData['cheque_valid_date'])->format('Y-m-d') : null,
+                    'cheque_given_by' => $paymentData['cheque_given_by'] ?? null,
+                    'cheque_status' => $paymentData['cheque_status'] ?? 'pending',
+                    'payment_status' => $paymentData['cheque_status'] === 'cleared' ? 'completed' : 'pending',
+                ]);
+            } else {
+                $paymentCreateData['payment_status'] = 'completed';
+            }
+
+            $payment = Payment::create($paymentCreateData);
+
+            if ($paymentData['payment_method'] === 'cheque' && isset($paymentData['cheque_valid_date'])) {
+                $payment->createReminders();
+            }
+
+            $this->unifiedLedgerService->recordReturnPayment($payment, 'customer');
+        }
+
+        $salesReturn->updateTotalDue();
     }
 
 

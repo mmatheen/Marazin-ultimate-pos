@@ -3,7 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Models\Purchase;
+use App\Models\Setting;
 use App\Models\Supplier;
+use App\Support\PurchaseTableColumns;
+use App\Support\TaxSettingsAccess;
 use App\Models\Batch;
 use App\Models\Ledger;
 use App\Models\ImeiNumber;
@@ -39,6 +42,21 @@ class PurchaseController extends Controller
         $this->middleware('permission:delete purchase', ['only' => ['destroy']]);
     }
 
+    protected function purchaseColumnContext(): array
+    {
+        $canUseFreeQty = (bool)(Setting::value('enable_free_qty') ?? 1)
+            && (auth()->user()?->can('create supplier claims') ?? false);
+        $canManageTax = TaxSettingsAccess::canManage();
+
+        return [
+            'canUseFreeQty' => $canUseFreeQty,
+            'canManageTax' => $canManageTax,
+            'purchaseTableColumns' => PurchaseTableColumns::fromSetting($canUseFreeQty, $canManageTax),
+            'purchaseColumnDefinitions' => PurchaseTableColumns::settingsFormColumns($canUseFreeQty, $canManageTax),
+            'mandatoryPurchaseColumns' => PurchaseTableColumns::MANDATORY_COLUMNS,
+        ];
+    }
+
     public function listPurchase()
     {
         $locations                = \App\Models\Location::all();
@@ -52,13 +70,15 @@ class PurchaseController extends Controller
 
     public function AddPurchase()
     {
-        $canUseFreeQty            = (bool)(\App\Models\Setting::value('enable_free_qty') ?? 1) && (auth()->user()?->can('create supplier claims') ?? false);
+        $canUseFreeQty            = (bool)(Setting::value('enable_free_qty') ?? 1) && (auth()->user()?->can('create supplier claims') ?? false);
         $canReceiveSupplierClaims = $canUseFreeQty && (auth()->user()?->can('receive supplier claims') ?? false);
         $canCreateSupplierClaims  = $canUseFreeQty;
 
-        return view('purchase.add_purchase', compact('canUseFreeQty', 'canReceiveSupplierClaims', 'canCreateSupplierClaims'));
+        return view('purchase.add_purchase', array_merge(
+            compact('canUseFreeQty', 'canReceiveSupplierClaims', 'canCreateSupplierClaims'),
+            $this->purchaseColumnContext()
+        ));
     }
-
 
     public function storeOrUpdate(Request $request, $purchaseId = null)
     {
@@ -262,6 +282,13 @@ class PurchaseController extends Controller
                 ]
             );
 
+            // Merge duplicate lines (same product + batch + expiry) before stock/totals
+            if (is_array($request->products) && count($request->products) > 0) {
+                $request->merge([
+                    'products' => $this->mergePurchaseProductLines($request->products),
+                ]);
+            }
+
             // Process products
             $this->processProducts($request, $purchase);
 
@@ -422,6 +449,41 @@ class PurchaseController extends Controller
     {
         // Note: UnifiedLedgerService automatically handles balance calculations
         // No manual recalculation needed
+    }
+
+    /**
+     * Combine duplicate purchase rows (same product_id + batch_no + expiry_date).
+     */
+    private function mergePurchaseProductLines(array $products): array
+    {
+        $merged = [];
+
+        foreach ($products as $product) {
+            $productId = (int) ($product['product_id'] ?? 0);
+            $batchKey = strtolower(trim((string) ($product['batch_no'] ?? '')));
+            $expiryKey = trim((string) ($product['expiry_date'] ?? ''));
+            $key = $productId . '|' . $batchKey;
+            if ($expiryKey !== '') {
+                $key .= '|' . $expiryKey;
+            }
+
+            if (!isset($merged[$key])) {
+                $merged[$key] = $product;
+
+                continue;
+            }
+
+            $merged[$key]['quantity'] = (float) ($merged[$key]['quantity'] ?? 0) + (float) ($product['quantity'] ?? 0);
+            $merged[$key]['free_quantity'] = (float) ($merged[$key]['free_quantity'] ?? 0) + (float) ($product['free_quantity'] ?? 0);
+            $merged[$key]['claim_free_quantity'] = (float) ($merged[$key]['claim_free_quantity'] ?? 0) + (float) ($product['claim_free_quantity'] ?? 0);
+            $merged[$key]['total'] = (float) ($merged[$key]['total'] ?? 0) + (float) ($product['total'] ?? 0);
+
+            if (isset($product['vat_total']) || isset($merged[$key]['vat_total'])) {
+                $merged[$key]['vat_total'] = (float) ($merged[$key]['vat_total'] ?? 0) + (float) ($product['vat_total'] ?? 0);
+            }
+        }
+
+        return array_values($merged);
     }
 
     private function processProducts($request, $purchase)
@@ -1328,11 +1390,14 @@ class PurchaseController extends Controller
             return response()->json(['status' => 200, 'purchase' => $purchase], 200);
         }
 
-        $canUseFreeQty            = (bool)(\App\Models\Setting::value('enable_free_qty') ?? 1) && (auth()->user()?->can('create supplier claims') ?? false);
+        $canUseFreeQty            = (bool)(Setting::value('enable_free_qty') ?? 1) && (auth()->user()?->can('create supplier claims') ?? false);
         $canReceiveSupplierClaims = $canUseFreeQty && (auth()->user()?->can('receive supplier claims') ?? false);
         $canCreateSupplierClaims  = $canUseFreeQty;
 
-        return view('purchase.add_purchase', compact('purchase', 'canUseFreeQty', 'canReceiveSupplierClaims', 'canCreateSupplierClaims'));
+        return view('purchase.add_purchase', array_merge(
+            compact('purchase', 'canUseFreeQty', 'canReceiveSupplierClaims', 'canCreateSupplierClaims'),
+            $this->purchaseColumnContext()
+        ));
     }
 
     /**

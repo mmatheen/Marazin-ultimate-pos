@@ -1426,14 +1426,17 @@
                     net_payable: net
                 };
 
+                const fmtAmt = (typeof window.formatAmountWithSeparators === 'function')
+                    ? window.formatAmountWithSeparators
+                    : (v) => Number(v).toFixed(2);
                 const footerAmt = document.querySelector('#total .pos-footer-amount-value');
-                if (footerAmt) footerAmt.textContent = net.toFixed(2);
+                if (footerAmt) footerAmt.textContent = fmtAmt(net.toFixed(2));
                 const payAmt = document.getElementById('payment-amount');
-                if (payAmt) payAmt.textContent = 'Rs ' + net.toFixed(2);
+                if (payAmt) payAmt.textContent = 'Rs ' + fmtAmt(net.toFixed(2));
                 const mobileInline = document.getElementById('mobile-final-total-inline');
-                if (mobileInline) mobileInline.textContent = 'Rs. ' + net.toFixed(2);
+                if (mobileInline) mobileInline.textContent = 'Rs. ' + fmtAmt(net.toFixed(2));
                 const mobileFooter = document.getElementById('mobile-final-total');
-                if (mobileFooter) mobileFooter.textContent = 'Rs. ' + net.toFixed(2);
+                if (mobileFooter) mobileFooter.textContent = 'Rs. ' + fmtAmt(net.toFixed(2));
             }
 
             const customerId = $('#customer-id').val();

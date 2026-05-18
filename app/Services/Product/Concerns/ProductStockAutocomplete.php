@@ -44,8 +44,9 @@ trait ProductStockAutocomplete
                     'special_price',
                     'retail_price',
                     'max_retail_price',
-                    'expiry_date'
-                ]);
+                    'expiry_date',
+                    'created_at',
+                ])->orderByDesc('created_at')->orderByDesc('id');
             },
             'batches.locationBatches' => function ($q) use ($locationId) {
                 if ($locationId) {
@@ -62,8 +63,8 @@ trait ProductStockAutocomplete
             // If backorder search is explicitly enabled, also include 0-stock items
             // that are mapped at the selected location so sale-order backorder flow
             // can search and add them.
-            // For purchase context: skip the qty>0 filter so all products (including 0 stock) are searchable.
-            ->when($locationId && $context !== 'purchase', function ($query) use ($locationId, $allowBackorderSearch) {
+            // Purchase & sale return (without bill): skip qty>0 filter so 0-stock products are searchable.
+            ->when($locationId && ! in_array($context, ['purchase', 'sale_return'], true), function ($query) use ($locationId, $allowBackorderSearch) {
                 return $query->where(function ($q) use ($locationId, $allowBackorderSearch) {
                     // Unlimited stock products are always visible regardless of location
                     $q->where('stock_alert', 0)
@@ -263,6 +264,7 @@ trait ProductStockAutocomplete
                         'retail_price' => $batch->retail_price,
                         'max_retail_price' => $batch->max_retail_price,
                         'expiry_date' => $batch->expiry_date,
+                        'created_at' => $batch->created_at,
                         'total_batch_quantity' => $allowDecimal
                             ? round((float) $batchQty, 2)
                             : (int) $batchQty,

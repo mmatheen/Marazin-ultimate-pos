@@ -232,6 +232,11 @@
                     <button type="button" class="settings-nav-btn" role="tab" aria-selected="false"
                         id="tab-features" aria-controls="settings-panel-features"
                         data-settings-target="features">Features</button>
+                    @can('view settings')
+                    <button type="button" class="settings-nav-btn" role="tab" aria-selected="false"
+                        id="tab-purchase" aria-controls="settings-panel-purchase"
+                        data-settings-target="purchase">Purchase</button>
+                    @endcan
                     @if(auth()->user()->can('edit sms-settings') || auth()->user()->can('sms.send'))
                     <button type="button" class="settings-nav-btn" role="tab" aria-selected="false"
                         id="tab-sms" aria-controls="settings-panel-sms"
@@ -411,6 +416,65 @@
                 @endcan
             </div>
             </section>
+
+            @can('view settings')
+            <section id="settings-panel-purchase" class="settings-panel d-none" role="tabpanel" aria-labelledby="tab-purchase" aria-hidden="true" data-settings-panel="purchase">
+            <div class="settings-features-shell">
+                <header class="settings-features-head">
+                    <h2 class="mb-1">Purchase table columns</h2>
+                    <p class="text-muted small mb-0">Choose which columns appear on Add / Edit Purchase. Hidden columns still save when you submit.</p>
+                </header>
+
+                <div class="card-body p-4">
+                    <h6 class="text-uppercase text-muted small mb-3">Always visible</h6>
+                    <ul class="list-group mb-4">
+                        @foreach ($mandatoryPurchaseColumns as $label)
+                            <li class="list-group-item d-flex justify-content-between align-items-center py-2">
+                                <span>{{ $label }}</span>
+                                <span class="badge bg-secondary">Required</span>
+                            </li>
+                        @endforeach
+                    </ul>
+
+                    <form id="purchaseColumnSettingsForm">
+                        @csrf
+                        <h6 class="text-uppercase text-muted small mb-3">Optional columns</h6>
+                        <div class="list-group mb-4">
+                            @foreach ($purchaseColumnDefinitions as $key => $meta)
+                                <label class="list-group-item d-flex justify-content-between align-items-center py-3">
+                                    <span>{{ $meta['label'] }}</span>
+                                    <div class="form-check form-switch mb-0">
+                                        <input class="form-check-input purchase-col-toggle" type="checkbox" role="switch"
+                                            name="{{ $key }}" value="1" id="col_{{ $key }}"
+                                            {{ !empty($purchaseTableColumns[$key]) ? 'checked' : '' }}>
+                                    </div>
+                                </label>
+                            @endforeach
+                        </div>
+
+                        <div class="d-flex flex-wrap gap-2 mb-4">
+                            <button type="button" class="btn btn-outline-secondary btn-sm" id="purchaseColShowAll">Show all optional</button>
+                            <button type="button" class="btn btn-outline-secondary btn-sm" id="purchaseColHideAll">Hide all optional</button>
+                            <button type="button" class="btn btn-outline-primary btn-sm" id="purchaseColRecommended">Recommended (minimal)</button>
+                        </div>
+
+                        @can('edit business-settings')
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save me-1"></i> Save column settings
+                            </button>
+                        @else
+                            <p class="text-muted small mb-0">You need <strong>edit business-settings</strong> permission to change these options.</p>
+                        @endcan
+                    </form>
+
+                    <div class="feature-hint mt-4 mb-0">
+                        <i class="fas fa-info-circle hint-ico"></i>
+                        <strong>Recommended minimal view:</strong> #, Product Name, Purchase Qty, Unit Cost (Before Discount), Line Total, MRP, Retail Price, and Remove — less scrolling on the purchase screen.
+                    </div>
+                </div>
+            </div>
+            </section>
+            @endcan
 
             @if(auth()->user()->can('edit sms-settings') || auth()->user()->can('sms.send'))
             <section id="settings-panel-sms" class="settings-panel d-none" role="tabpanel" aria-labelledby="tab-sms" aria-hidden="true" data-settings-panel="sms">
@@ -798,6 +862,59 @@ $('#smsSendForm').on('submit', function (e) {
         }
     });
 });
+
+(function () {
+    var purchaseForm = document.getElementById('purchaseColumnSettingsForm');
+    if (!purchaseForm) return;
+
+    var optionalInputs = function () {
+        return purchaseForm.querySelectorAll('.purchase-col-toggle');
+    };
+
+    document.getElementById('purchaseColShowAll')?.addEventListener('click', function () {
+        optionalInputs().forEach(function (input) { input.checked = true; });
+    });
+
+    document.getElementById('purchaseColHideAll')?.addEventListener('click', function () {
+        optionalInputs().forEach(function (input) { input.checked = false; });
+    });
+
+    document.getElementById('purchaseColRecommended')?.addEventListener('click', function () {
+        optionalInputs().forEach(function (input) { input.checked = false; });
+    });
+
+    $('#purchaseColumnSettingsForm').on('submit', function (e) {
+        e.preventDefault();
+        var formData = new FormData(this);
+        optionalInputs().forEach(function (input) {
+            if (!input.checked) {
+                formData.delete(input.name);
+                formData.append(input.name, '0');
+            }
+        });
+
+        $.ajax({
+            url: '{{ route('settings.update-purchase-columns') }}',
+            type: 'POST',
+            data: formData,
+            contentType: false,
+            processData: false,
+            headers: {
+                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+            },
+            success: function (response) {
+                if (response.status) {
+                    toastr.success(response.message);
+                } else {
+                    toastr.error(response.message || 'Failed.');
+                }
+            },
+            error: function (xhr) {
+                toastr.error(xhr.responseJSON?.message || 'Please fix the errors.');
+            }
+        });
+    });
+})();
 </script>
 @endsection
 

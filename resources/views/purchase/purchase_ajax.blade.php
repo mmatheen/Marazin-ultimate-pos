@@ -1,6 +1,7 @@
 <script type="text/javascript">
     $(document).ready(function() {
         const canUseFreeQty              = {!! json_encode($canUseFreeQty ?? false) !!};
+        const canManageTax               = {!! json_encode($canManageTax ?? \App\Support\TaxSettingsAccess::canManage()) !!};
         const canReceiveSupplierClaims   = {!! json_encode($canReceiveSupplierClaims ?? false) !!};
         const canCreateSupplierClaims    = {!! json_encode($canCreateSupplierClaims ?? false) !!};
         const defaultPurchaseTaxPercent  = {!! json_encode((float) (
@@ -13,6 +14,43 @@
                 'rate' => (float) $taxRate->rate,
             ];
         })->values()) !!};
+        let purchaseTableColumns = {!! json_encode($purchaseTableColumns ?? \App\Support\PurchaseTableColumns::fromSetting($canUseFreeQty ?? false)) !!};
+
+        const purchaseMandatoryColumnKeys = [
+            'index', 'product_name', 'purchase_quantity', 'unit_cost_before_discount',
+            'line_total', 'max_retail_price', 'retail_price', 'actions'
+        ];
+
+        function applyPurchaseColumnVisibility(columns) {
+            if (!columns || typeof columns !== 'object') {
+                return;
+            }
+            purchaseTableColumns = columns;
+
+            if (!canManageTax) {
+                columns.product_tax = false;
+                columns.tax_amount = false;
+            }
+
+            $('#purchase_product .purchase-col').each(function() {
+                const $cell = $(this);
+                const classes = ($cell.attr('class') || '').split(/\s+/);
+                const colKey = classes.find((cls) => cls.startsWith('purchase-col-') && cls !== 'purchase-col');
+                if (!colKey) {
+                    return;
+                }
+                const key = colKey.replace('purchase-col-', '');
+                if (purchaseMandatoryColumnKeys.includes(key)) {
+                    $cell.removeClass('purchase-col-hidden');
+                    return;
+                }
+                const visible = columns[key] === true;
+                $cell.toggleClass('purchase-col-hidden', !visible);
+            });
+        }
+
+        window.applyPurchaseColumnVisibility = applyPurchaseColumnVisibility;
+
         // Expose on window so product_ajax.blade.php can read them
         window.purchaseCanUseFreeQty           = canUseFreeQty;
         window.purchaseCanCreateSupplierClaims = canCreateSupplierClaims;
@@ -96,6 +134,9 @@
         }
 
         function resolveRowTaxPercent($row) {
+            if (!canManageTax) {
+                return 0;
+            }
             const taxRateId = $row.find('.product-tax-rate').val();
             if (!taxRateId) {
                 return 0;
@@ -108,24 +149,10 @@
 
             return resolvePurchaseTaxPercent(selectedTaxRate.rate);
         }
-        // Add CSS for batch history styling
         if (!$('#batch-history-styles').length) {
             $('<style id="batch-history-styles">')
                 .prop("type", "text/css")
                 .html(`
-                    .batch-history {
-                        max-height: 100px;
-                        overflow-y: auto;
-                        font-size: 11px;
-                        background-color: #f8f9fa;
-                        padding: 5px;
-                        border-radius: 3px;
-                        border: 1px solid #e9ecef;
-                    }
-                    .batch-history small {
-                        line-height: 1.2;
-                        margin-bottom: 2px;
-                    }
                     .is-invalid {
                         border-color: #dc3545 !important;
                         animation: shake 0.5s;
@@ -171,10 +198,16 @@
                     }
                     .preview-container {
                         background-color: #fff;
-                        min-height: 200px;
+                        min-height: 0;
                         display: flex;
                         align-items: center;
                         justify-content: center;
+                    }
+                    #purchase-preview-wrap {
+                        display: none;
+                    }
+                    #purchase-preview-wrap.has-preview {
+                        display: block;
                     }
                     #purchase-selectedImage {
                         max-width: 100%;
@@ -213,23 +246,168 @@
         // DataTable global variable
         let purchaseProductTable = null;
 
-        /** Product ids in the order the user added them (supplier list order). */
+        /** Unique line keys in the order the user added them (supports same product, different batch/expiry). */
         let purchaseAddOrder = [];
+        let purchaseLineCounter = 0;
 
-        function trackPurchaseLineAdd(productId) {
-            const id = String(productId);
-            if (!purchaseAddOrder.includes(id)) {
-                purchaseAddOrder.push(id);
+        function normalizePurchaseBatchNo(batchNo) {
+            return String(batchNo || '').trim().toLowerCase();
+        }
+
+        function normalizePurchaseExpiryDate(expiryDate) {
+            return String(expiryDate || '').trim();
+        }
+
+        function purchaseExpiryColumnEnabled() {
+            return !!(purchaseTableColumns && purchaseTableColumns.expiry_date === true);
+        }
+
+        /** Batch-only settings: match by product + batch. Both columns: product + batch + expiry. */
+        function buildPurchaseLineMatchKey(productId, batchNo, expiryDate) {
+            const batch = normalizePurchaseBatchNo(batchNo);
+            if (purchaseExpiryColumnEnabled()) {
+                return `${productId}|${batch}|${normalizePurchaseExpiryDate(expiryDate)}`;
+            }
+            return `${productId}|${batch}`;
+        }
+
+        function resolveIncomingBatchForMerge(product, prices, latestPrices) {
+            if (Object.prototype.hasOwnProperty.call(prices, 'batch_no')) {
+                return String(prices.batch_no || '').trim();
+            }
+            if (purchaseExpiryColumnEnabled()) {
+                return String(latestPrices.batch_no || product.batch_no || '').trim();
+            }
+            return '';
+        }
+
+        function resolveIncomingExpiryForMerge(product, prices, latestPrices) {
+            if (!purchaseExpiryColumnEnabled()) {
+                return '';
+            }
+            if (prices.expiry_date !== undefined && prices.expiry_date !== null) {
+                return formatDateForPurchaseInput(prices.expiry_date);
+            }
+            return formatDateForPurchaseInput(
+                latestPrices.expiry_date || product.expiry_date || ''
+            );
+        }
+
+        function generatePurchaseLineKey() {
+            purchaseLineCounter += 1;
+            return `line_${purchaseLineCounter}`;
+        }
+
+        function findPurchaseRowByBatchKey(productId, batchNo, expiryDate) {
+            const matchKey = buildPurchaseLineMatchKey(productId, batchNo, expiryDate);
+            let found = null;
+            getPurchaseProductTableRows().forEach(function(rowData) {
+                const $row = $(rowData);
+                if (String($row.data('id')) !== String(productId)) {
+                    return;
+                }
+                const rowExpiry = purchaseExpiryColumnEnabled()
+                    ? $row.find('.expiry-date').val()
+                    : '';
+                const rowKey = buildPurchaseLineMatchKey(
+                    productId,
+                    $row.find('.batch_no').val(),
+                    rowExpiry
+                );
+                if (rowKey === matchKey) {
+                    found = $row;
+                }
+            });
+            return found;
+        }
+
+        /** When user sets same batch on two rows, merge qty into the oldest matching row. Returns true if merged. */
+        function tryMergePurchaseRowByBatch($row) {
+            if (!$row || !$row.length) {
+                return false;
+            }
+            const productId = $row.data('id');
+            const batchNo = $row.find('.batch_no').val();
+            const expiry = purchaseExpiryColumnEnabled() ? $row.find('.expiry-date').val() : '';
+            const matchKey = buildPurchaseLineMatchKey(productId, batchNo, expiry);
+            let target = null;
+            let targetOrder = Infinity;
+
+            getPurchaseProductTableRows().forEach(function(rowData) {
+                const $other = $(rowData);
+                if ($other[0] === $row[0]) {
+                    return;
+                }
+                if (String($other.data('id')) !== String(productId)) {
+                    return;
+                }
+                const otherExpiry = purchaseExpiryColumnEnabled()
+                    ? $other.find('.expiry-date').val()
+                    : '';
+                const otherKey = buildPurchaseLineMatchKey(
+                    productId,
+                    $other.find('.batch_no').val(),
+                    otherExpiry
+                );
+                if (otherKey !== matchKey) {
+                    return;
+                }
+                const lineKey = String($other.data('line-key') || '');
+                const orderIdx = purchaseAddOrder.indexOf(lineKey);
+                const rank = orderIdx === -1 ? Infinity : orderIdx;
+                if (rank < targetOrder) {
+                    target = $other;
+                    targetOrder = rank;
+                }
+            });
+
+            if (!target) {
+                return false;
+            }
+
+            const allowDecimal = $row.find('.purchase-quantity').data('allow-decimal');
+            const qty = parseFloat($row.find('.purchase-quantity').val()) || 0;
+            const targetQty = parseFloat(target.find('.purchase-quantity').val()) || 0;
+            const newQty = (allowDecimal === false || allowDecimal === 'false')
+                ? parseInt(targetQty) + parseInt(qty)
+                : targetQty + qty;
+            target.find('.purchase-quantity').val(newQty).trigger('input');
+            removePurchaseLineRow($row);
+            updateFooter();
+            if (typeof toastr !== 'undefined') {
+                toastr.info('Merged into existing row (same batch).', 'Merged');
+            }
+            return true;
+        }
+
+        function onPurchaseRowBatchChanged($row) {
+            if (tryMergePurchaseRowByBatch($row)) {
+                return;
+            }
+            const batchNo = ($row.find('.batch_no').val() || '').trim();
+            if (!batchNo) {
+                return;
+            }
+            const product = { id: $row.data('id'), batches: getProductBatchesFromRow($row) };
+            const prices = getPricesForPurchaseBatch(product, batchNo);
+            applyPurchaseRowPrices($row, prices);
+        }
+
+        function trackPurchaseLineAdd(lineKey) {
+            const key = String(lineKey);
+            if (!purchaseAddOrder.includes(key)) {
+                purchaseAddOrder.push(key);
             }
         }
 
-        function trackPurchaseLineRemove(productId) {
-            const id = String(productId);
-            purchaseAddOrder = purchaseAddOrder.filter((x) => x !== id);
+        function trackPurchaseLineRemove(lineKey) {
+            const key = String(lineKey);
+            purchaseAddOrder = purchaseAddOrder.filter((x) => x !== key);
         }
 
         function resetPurchaseAddOrder() {
             purchaseAddOrder = [];
+            purchaseLineCounter = 0;
         }
 
         /** Remove stray DataTables placeholder rows (causes "No data" + wrong # counter). */
@@ -264,10 +442,12 @@
         }
 
         function removePurchaseLineRow($row) {
-            const productId = $row.data('id');
+            const lineKey = $row.data('line-key');
             $row.remove();
             cleanupPurchaseTablePlaceholders();
-            trackPurchaseLineRemove(productId);
+            if (lineKey) {
+                trackPurchaseLineRemove(lineKey);
+            }
             updatePurchaseRowCounters();
         }
 
@@ -286,7 +466,7 @@
         function getPurchaseProductTableRowsForSave() {
             const $tbody = $('#purchase_product tbody');
             return purchaseAddOrder
-                .map((pid) => $tbody.find(`tr[data-id="${pid}"]`).first()[0])
+                .map((lineKey) => $tbody.find(`tr[data-line-key="${lineKey}"]`)[0])
                 .filter(Boolean);
         }
 
@@ -513,6 +693,199 @@
             return paid + free;
         }
 
+        /** Most recent batch (latest purchase) — by created_at, then id. */
+        function getLatestBatchFromList(batches) {
+            if (!batches || batches.length === 0) {
+                return null;
+            }
+            return [...batches].sort((a, b) => {
+                if (a.created_at && b.created_at) {
+                    const diff = new Date(b.created_at) - new Date(a.created_at);
+                    if (diff !== 0) {
+                        return diff;
+                    }
+                }
+                return (parseInt(b.id, 10) || 0) - (parseInt(a.id, 10) || 0);
+            })[0];
+        }
+
+        function getLatestBatchPrices(product) {
+            const fallback = {
+                wholesale_price: product.wholesale_price || product.whole_sale_price || 0,
+                special_price: product.special_price || 0,
+                max_retail_price: product.max_retail_price || 0,
+                retail_price: product.retail_price || 0,
+                unit_cost: product.price || product.original_price || 0,
+                batch_no: product.batch_no || '',
+                expiry_date: product.expiry_date || '',
+            };
+
+            const latestBatch = getLatestBatchFromList(product.batches);
+            if (!latestBatch) {
+                return fallback;
+            }
+
+            return {
+                wholesale_price: latestBatch.wholesale_price ?? fallback.wholesale_price,
+                special_price: latestBatch.special_price ?? fallback.special_price,
+                max_retail_price: latestBatch.max_retail_price ?? fallback.max_retail_price,
+                retail_price: latestBatch.retail_price ?? fallback.retail_price,
+                unit_cost: latestBatch.unit_cost ?? fallback.unit_cost,
+                batch_no: latestBatch.batch_no || '',
+                expiry_date: latestBatch.expiry_date || '',
+            };
+        }
+
+        function formatDateForPurchaseInput(value) {
+            if (!value) {
+                return '';
+            }
+            const raw = String(value).trim();
+            if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+                return raw;
+            }
+            const d = new Date(raw);
+            if (isNaN(d.getTime())) {
+                return raw.substring(0, 10);
+            }
+            return d.toISOString().substring(0, 10);
+        }
+
+        /** Modal only when BOTH batch and expiry columns are enabled in Purchase settings. */
+        function purchaseBatchExpiryPromptEnabled() {
+            if (isPurchaseEditPage()) {
+                return false;
+            }
+            return !!(purchaseTableColumns &&
+                purchaseTableColumns.batch === true &&
+                purchaseTableColumns.expiry_date === true);
+        }
+
+        function applyPurchaseRowPrices($row, prices) {
+            if (!$row || !$row.length || !prices) {
+                return;
+            }
+            const unitCost = parseFloat(prices.unit_cost) || 0;
+            let retailPrice = parseFloat(prices.retail_price) || 0;
+            const mrp = parseFloat(prices.max_retail_price) || 0;
+            if (mrp > 0 && retailPrice > mrp) {
+                retailPrice = mrp;
+            }
+            $row.find('.product-price').val(unitCost.toFixed(2));
+            $row.find('.unit-cost').val(unitCost.toFixed(2));
+            $row.find('.wholesale-price').val((parseFloat(prices.wholesale_price) || 0).toFixed(2));
+            $row.find('.special-price').val((parseFloat(prices.special_price) || 0).toFixed(2));
+            $row.find('.max-retail-price').val(mrp.toFixed(2));
+            $row.attr('data-mrp', mrp);
+            $row.find('.retail-price').val(retailPrice.toFixed(2)).attr('max', mrp > 0 ? mrp : null);
+            updateRow($row);
+            calculateProfitMargin($row);
+            updateFooter();
+        }
+
+        function getProductBatchesFromRow($row) {
+            const raw = $row.attr('data-product-batches');
+            if (!raw) {
+                return [];
+            }
+            try {
+                return JSON.parse(decodeURIComponent(raw));
+            } catch (e) {
+                return [];
+            }
+        }
+
+        function getPricesForPurchaseBatch(product, batchNo) {
+            const latest = getLatestBatchPrices(product);
+            const key = normalizePurchaseBatchNo(batchNo);
+            if (!key) {
+                return latest;
+            }
+            const match = (product.batches || []).find((b) =>
+                normalizePurchaseBatchNo(b.batch_no) === key
+            );
+            if (!match) {
+                return Object.assign({}, latest, { batch_no: String(batchNo || '').trim() });
+            }
+            return {
+                unit_cost: match.unit_cost ?? latest.unit_cost,
+                wholesale_price: match.wholesale_price ?? latest.wholesale_price,
+                special_price: match.special_price ?? latest.special_price,
+                max_retail_price: match.max_retail_price ?? latest.max_retail_price,
+                retail_price: match.retail_price ?? latest.retail_price,
+                batch_no: match.batch_no || String(batchNo || '').trim(),
+                expiry_date: formatDateForPurchaseInput(match.expiry_date) || latest.expiry_date,
+            };
+        }
+
+        function updatePurchaseBatchExpiryPriceHint(product, prices) {
+            const p = prices || getLatestBatchPrices(product);
+            const $hint = $('#purchaseBatchExpiryPriceHint');
+            if (!$hint.length) {
+                return;
+            }
+            $hint.text(
+                `Prices: Cost ${parseFloat(p.unit_cost || 0).toFixed(2)} · MRP ${parseFloat(p.max_retail_price || 0).toFixed(2)} · Retail ${parseFloat(p.retail_price || 0).toFixed(2)}` +
+                (p.batch_no ? ` (batch: ${p.batch_no})` : ' (new batch — latest purchase prices)')
+            );
+        }
+
+        let purchaseBatchExpiryResolve = null;
+        let purchaseBatchExpiryConfirmed = false;
+
+        function openPurchaseBatchExpiryModal(product) {
+            return new Promise(function(resolve) {
+                purchaseBatchExpiryResolve = resolve;
+                purchaseBatchExpiryConfirmed = false;
+
+                $('#purchaseBatchExpiryModal').data('product', product);
+                $('#purchaseBatchExpiryProductName').text(product.name || '');
+
+                const showExpiry = purchaseTableColumns.expiry_date === true;
+                const showBatch = purchaseTableColumns.batch === true;
+                $('#purchaseBatchExpiryExpiryWrap').toggleClass('d-none', !showExpiry);
+                $('#purchaseBatchExpiryBatchWrap').toggleClass('d-none', !showBatch);
+
+                $('#purchaseBatchExpiryInput').val('');
+                $('#purchaseBatchExpiryBatchInput').val('');
+
+                const $list = $('#purchaseBatchExpiryBatchList').empty();
+                (product.batches || []).forEach(function(batch) {
+                    if (batch.batch_no) {
+                        $list.append($('<option>').attr('value', batch.batch_no));
+                    }
+                });
+
+                updatePurchaseBatchExpiryPriceHint(product);
+
+                const modalEl = document.getElementById('purchaseBatchExpiryModal');
+                if (modalEl && window.bootstrap && bootstrap.Modal) {
+                    bootstrap.Modal.getOrCreateInstance(modalEl).show();
+                } else {
+                    $('#purchaseBatchExpiryModal').modal('show');
+                }
+            });
+        }
+
+        function addPurchaseProductFromSearch(product) {
+            if (!purchaseBatchExpiryPromptEnabled()) {
+                addProductToTable(product);
+                return;
+            }
+            openPurchaseBatchExpiryModal(product).then(function(result) {
+                if (!result) {
+                    return;
+                }
+                const batchPrices = getPricesForPurchaseBatch(product, result.batch_no);
+                addProductToTable(product, false, Object.assign({}, batchPrices, {
+                    batch_no: result.batch_no,
+                    expiry_date: result.expiry_date,
+                }));
+            });
+        }
+
+        window.addPurchaseProductFromSearch = addPurchaseProductFromSearch;
+
         function initAutocomplete() {
             const $input = $("#productSearchInput");
 
@@ -536,7 +909,7 @@
                     }
 
                     if (itemToAdd && itemToAdd.product) {
-                        addProductToTable(itemToAdd.product);
+                        addPurchaseProductFromSearch(itemToAdd.product);
                         $(this).val('');
                         $(this).autocomplete('close');
                     }
@@ -567,6 +940,16 @@
                                 let items = data.data
                                     .map(item => {
                                         const stockDisplay = purchaseSellableStockDisplay(item);
+                                        const batches = item.batches || [];
+                                        const latestPrices = getLatestBatchPrices({
+                                            batches: batches,
+                                            wholesale_price: item.product.whole_sale_price || 0,
+                                            special_price: item.product.special_price || 0,
+                                            max_retail_price: item.product.max_retail_price || 0,
+                                            retail_price: item.product.retail_price || 0,
+                                            price: item.product.original_price || 0,
+                                            original_price: item.product.original_price || 0,
+                                        });
                                         return {
                                         label: `${item.product.product_name} (${item.product.sku || 'N/A'}) [Stock: ${stockDisplay}]`,
                                         value: item.product.product_name,
@@ -575,18 +958,14 @@
                                             name: item.product.product_name,
                                             sku: item.product.sku || "N/A",
                                             quantity: stockDisplay,
-                                            price: item.product
-                                                .original_price || 0,
-                                            wholesale_price: item.product
-                                                .whole_sale_price || 0,
-                                            special_price: item.product
-                                                .special_price || 0,
-                                            max_retail_price: item.product
-                                                .max_retail_price || 0,
-                                            retail_price: item.product
-                                                .retail_price || 0,
-                                            expiry_date: '', // Not available in autocomplete
-                                            batch_no: '', // Not available in autocomplete
+                                            batches: batches,
+                                            price: latestPrices.unit_cost,
+                                            wholesale_price: latestPrices.wholesale_price,
+                                            special_price: latestPrices.special_price,
+                                            max_retail_price: latestPrices.max_retail_price,
+                                            retail_price: latestPrices.retail_price,
+                                            expiry_date: '',
+                                            batch_no: '',
                                             stock_alert: item.product
                                                 .stock_alert || 0,
                                             allow_decimal: item.product.unit
@@ -630,7 +1009,7 @@
                     if (!ui.item.product) {
                         return false;
                     }
-                    addProductToTable(ui.item.product);
+                    addPurchaseProductFromSearch(ui.item.product);
                     $("#productSearchInput").val("");
                     currentPage = 1;
                     return false;
@@ -685,23 +1064,29 @@
                     if (data.status === 200 && Array.isArray(data.data)) {
                         allProducts = data.data.map(stock => {
                             if (!stock.product) return null;
+                            const batches = stock.batches || [];
+                            const latestPrices = getLatestBatchPrices({
+                                batches: batches,
+                                wholesale_price: stock.product.whole_sale_price || 0,
+                                special_price: stock.product.special_price || 0,
+                                max_retail_price: stock.product.max_retail_price || 0,
+                                retail_price: stock.product.retail_price || 0,
+                                price: stock.product.original_price || 0,
+                                original_price: stock.product.original_price || 0,
+                            });
                             return {
                                 id: stock.product.id,
                                 name: stock.product.product_name,
                                 sku: stock.product.sku || "N/A",
                                 quantity: purchaseSellableStockDisplay(stock),
-                                price: stock.batches?.[0]?.unit_cost || stock.product
-                                    .original_price || 0,
-                                wholesale_price: stock.batches?.[0]?.wholesale_price || stock
-                                    .product.whole_sale_price || 0,
-                                special_price: stock.batches?.[0]?.special_price || stock.product
-                                    .special_price || 0,
-                                max_retail_price: stock.batches?.[0]?.max_retail_price || stock
-                                    .product.max_retail_price || 0,
-                                retail_price: stock.batches?.[0]?.retail_price || stock.product
-                                    .retail_price || 0,
-                                expiry_date: stock.batches?.[0]?.expiry_date || '',
-                                batch_no: stock.batches?.[0]?.batch_no || '',
+                                batches: batches,
+                                price: latestPrices.unit_cost,
+                                wholesale_price: latestPrices.wholesale_price,
+                                special_price: latestPrices.special_price,
+                                max_retail_price: latestPrices.max_retail_price,
+                                retail_price: latestPrices.retail_price,
+                                expiry_date: '',
+                                batch_no: '',
                                 stock_alert: stock.product.stock_alert || 0,
                                 allow_decimal: stock.product.unit?.allow_decimal ||
                                     false // Pass allow_decimal
@@ -717,14 +1102,15 @@
         // Location change handler (moved to consolidated document.ready below)
 
         function addProductToTable(product, isEditing = false, prices = {}) {
-            let existingRow = null;
+            // Get latest batch prices using helper function (needed for merge key and new rows)
+            const latestPrices = getLatestBatchPrices(product);
+            const incomingBatchNo = resolveIncomingBatchForMerge(product, prices, latestPrices);
+            const incomingExpiry = resolveIncomingExpiryForMerge(product, prices, latestPrices);
 
-            getPurchaseProductTableRows().forEach(function(rowData) {
-                const rowProductId = $(rowData).data('id');
-                if (rowProductId && rowProductId == product.id) {
-                    existingRow = $(rowData);
-                }
-            });
+            let existingRow = null;
+            if (!isEditing) {
+                existingRow = findPurchaseRowByBatchKey(product.id, incomingBatchNo, incomingExpiry);
+            }
 
             // Determine if decimal is allowed for this product
             const allowDecimal = product.allow_decimal === true || product.allow_decimal === "true";
@@ -741,7 +1127,7 @@
                     console.warn(`⚠️ Product ${product.id} found in DataTable but not in DOM - treating as new product`);
                     existingRow = null; // Reset so it gets added as new row
                 } else {
-                    console.log(`📋 Product ${product.id} (${product.name}) already exists - incrementing quantity`);
+                    console.log(`📋 Product ${product.id} (${product.name}) same batch/expiry - incrementing quantity`);
                     const quantityInput = existingRow.find('.purchase-quantity');
                     let currentVal = parseFloat(quantityInput.val());
                     let newQuantity = allowDecimal ? (currentVal + 1) : (parseInt(currentVal) + 1);
@@ -757,8 +1143,6 @@
 
             if (!existingRow) {
                 console.log(`➕ Adding new product ${product.id} (${product.name}) to table. IsEditing: ${isEditing}`);
-                // Get latest batch prices using helper function
-                const latestPrices = getLatestBatchPrices(product);
 
                 // Override with any provided prices
                 const wholesalePrice = parseFloat(prices.wholesale_price || latestPrices.wholesale_price) || 0;
@@ -775,23 +1159,6 @@
                         'Price Adjustment');
                 }
 
-                // Generate batch history for reference (latest 5 batches, most recent first)
-                let batchHistoryHtml = '';
-                if (product.batches && product.batches.length > 0) {
-                    const recentBatches = product.batches
-                        .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
-                        .slice(0, 5);
-
-                    batchHistoryHtml = recentBatches.map(batch =>
-                        `<small class="d-block text-muted">
-                            Batch: ${batch.batch_no || 'N/A'} |
-                            Cost: ${parseFloat(batch.unit_cost || 0).toFixed(2)} |
-                            Retail: ${parseFloat(batch.retail_price || 0).toFixed(2)} |
-                            Date: ${batch.created_at ? new Date(batch.created_at).toLocaleDateString() : 'N/A'}
-                        </small>`
-                    ).join('');
-                }
-
                 const taxPercent = resolvePurchaseTaxPercent(product.tax_percent);
                 const selectedTaxRateId = findTaxRateIdByPercent(taxPercent);
 
@@ -802,54 +1169,53 @@
                 console.log(`   selectedTaxRateId: "${selectedTaxRateId}"`);
                 console.log(`   Available tax rates:`, purchaseTaxRates);
 
+                const lineKey = generatePurchaseLineKey();
+                trackPurchaseLineAdd(lineKey);
+
+                const batchesAttr = encodeURIComponent(JSON.stringify(product.batches || []));
                 const newRow = `
-            <tr data-id="${product.id}" data-mrp="${maxRetailPrice}" data-tax-percent="${taxPercent}" data-imei-enabled="${product.is_imei_or_serial_no || false}">
-            <td class="line-counter"></td>
-            <td>
+            <tr data-id="${product.id}" data-line-key="${lineKey}" data-mrp="${maxRetailPrice}" data-tax-percent="${taxPercent}" data-imei-enabled="${product.is_imei_or_serial_no || false}" data-product-batches="${batchesAttr}">
+            <td class="line-counter purchase-col purchase-col-index"></td>
+            <td class="purchase-col purchase-col-product_name">
                 ${product.name}
-                <br><small>Stock: ${product.quantity}</small>
-                ${batchHistoryHtml ? `<br><div class="batch-history mt-1"><strong>Recent Batches:</strong><br>${batchHistoryHtml}</div>` : ''}
+                <small class="text-muted ms-1">· Stock: ${product.quantity}</small>
             </td>
-            <td>
+            <td class="purchase-col purchase-col-purchase_quantity">
                 <input type="number" class="form-control purchase-quantity" value="${prices.quantity || 1}" min="${quantityMin}" step="${quantityStep}" pattern="${quantityPattern}" data-allow-decimal="${allowDecimal}">
             </td>
             ${canUseFreeQty
-                ? `<td><input type="number" class="form-control free-quantity" value="${prices.free_quantity || 0}" min="0" step="${quantityStep}" pattern="${quantityPattern}" data-allow-decimal="${allowDecimal}" placeholder="Free qty"></td>`
+                ? `<td class="purchase-col purchase-col-free_qty"><input type="number" class="form-control free-quantity" value="${prices.free_quantity || 0}" min="0" step="${quantityStep}" pattern="${quantityPattern}" data-allow-decimal="${allowDecimal}" placeholder="Free qty"></td>`
                 : ``
             }
             ${canUseFreeQty
-                ? `<td><input type="number" class="form-control claim-free-quantity" value="${prices.claim_free_quantity || 0}" min="0" step="${quantityStep}" pattern="${quantityPattern}" data-allow-decimal="${allowDecimal}" placeholder="Claim qty"></td>`
+                ? `<td class="purchase-col purchase-col-claim_free_qty"><input type="number" class="form-control claim-free-quantity" value="${prices.claim_free_quantity || 0}" min="0" step="${quantityStep}" pattern="${quantityPattern}" data-allow-decimal="${allowDecimal}" placeholder="Claim qty"></td>`
                 : ``
             }
-            <td>
+            <td class="purchase-col purchase-col-unit_cost_before_discount">
                 <input type="number" class="form-control product-price" value="${unitCost.toFixed(2)}" min="0">
             </td>
-            <td>
+            <td class="purchase-col purchase-col-discount_percent">
                 <input type="number" class="form-control discount-percent" value="0" min="0" max="100">
             </td>
-            <td><input type="number" class="form-control amount unit-cost" value="${unitCost.toFixed(2)}" min="0"></td>
-            <td>
+            <td class="purchase-col purchase-col-unit_cost_after_discount"><input type="number" class="form-control amount unit-cost" value="${unitCost.toFixed(2)}" min="0"></td>
+            ${canManageTax ? `<td class="purchase-col purchase-col-product_tax">
                 <select class="form-control form-select form-select-sm product-tax-rate" style="min-width: 150px;">
                     ${buildProductTaxOptions(selectedTaxRateId)}
                 </select>
             </td>
-            <td><input type="number" class="form-control tax-amount" value="0" min="0" readonly></td>
-            <td class="line-total">0</td>
-            <td><input type="number" class="form-control special-price" value="${specialPrice.toFixed(2)}" min="0"></td>
+            <td class="purchase-col purchase-col-tax_amount"><input type="number" class="form-control tax-amount" value="0" min="0" readonly></td>` : ''}
+            <td class="line-total purchase-col purchase-col-line_total">0</td>
+            <td class="purchase-col purchase-col-special_price"><input type="number" class="form-control special-price" value="${specialPrice.toFixed(2)}" min="0"></td>
             <td style="display:none;"><input type="number" class="form-control net-unit-cost" value="${unitCost.toFixed(2)}" min="0" readonly></td>
-            <td><input type="number" class="form-control wholesale-price" value="${wholesalePrice.toFixed(2)}" min="0"></td>
-            <td><input type="number" class="form-control max-retail-price" value="${maxRetailPrice.toFixed(2)}" min="0"></td>
-            <td><input type="number" class="form-control profit-margin" value="0" min="0" readonly></td>
-            <td><input type="number" class="form-control retail-price" value="${retailPrice.toFixed(2)}" min="0" max="${maxRetailPrice}" required title="Maximum allowed: ${maxRetailPrice.toFixed(2)} (MRP)" placeholder="Max: ${maxRetailPrice.toFixed(2)}"></td>
-            <td><input type="date" class="form-control expiry-date" value="${latestPrices.expiry_date}"></td>
-            <td><input type="text" class="form-control batch_no" value="${latestPrices.batch_no}"></td>
-            <td><button class="btn btn-danger btn-sm remove-purchase-row"><i class="fas fa-trash"></i></button></td>
+            <td class="purchase-col purchase-col-wholesale_price"><input type="number" class="form-control wholesale-price" value="${wholesalePrice.toFixed(2)}" min="0"></td>
+            <td class="purchase-col purchase-col-max_retail_price"><input type="number" class="form-control max-retail-price" value="${maxRetailPrice.toFixed(2)}" min="0"></td>
+            <td class="purchase-col purchase-col-profit_margin"><input type="number" class="form-control profit-margin" value="0" min="0" readonly></td>
+            <td class="purchase-col purchase-col-retail_price"><input type="number" class="form-control retail-price" value="${retailPrice.toFixed(2)}" min="0" max="${maxRetailPrice}" required title="Maximum allowed: ${maxRetailPrice.toFixed(2)} (MRP)" placeholder="Max: ${maxRetailPrice.toFixed(2)}"></td>
+            <td class="purchase-col purchase-col-expiry_date"><input type="date" class="form-control expiry-date" value="${formatDateForPurchaseInput(prices.expiry_date ?? (isEditing ? latestPrices.expiry_date : ''))}"></td>
+            <td class="purchase-col purchase-col-batch"><input type="text" class="form-control batch_no" value="${prices.batch_no ?? (isEditing ? latestPrices.batch_no : '')}"></td>
+            <td class="purchase-col purchase-col-actions"><button class="btn btn-danger btn-sm remove-purchase-row"><i class="fas fa-trash"></i></button></td>
             </tr>
         `;
-
-                if (!isEditing) {
-                    trackPurchaseLineAdd(product.id);
-                }
 
                 const $newRow = $(newRow);
                 if (isEditing) {
@@ -858,7 +1224,8 @@
                     prependPurchaseLineRow($newRow);
                 }
 
-                const $rowNode = $('#purchase_product tbody tr[data-id="' + product.id + '"]').last();
+                const $rowNode = $newRow;
+                applyPurchaseColumnVisibility(purchaseTableColumns);
                 updateRow($rowNode);
                 calculateProfitMargin($rowNode);
                 updateFooter();
@@ -914,6 +1281,15 @@
                     updateFooter();
                 });
 
+                $rowNode.find('.batch_no').on('change blur', function() {
+                    onPurchaseRowBatchChanged($rowNode);
+                });
+                if (purchaseExpiryColumnEnabled()) {
+                    $rowNode.find('.expiry-date').on('change', function() {
+                        tryMergePurchaseRowByBatch($rowNode);
+                    });
+                }
+
                 // Handle row removal for newly added products (NOT product deletion)
                 // Uses .remove-purchase-row class to avoid conflict with product_ajax.blade.php
                 $rowNode.find(".remove-purchase-row").on("click", function(e) {
@@ -964,7 +1340,7 @@
             const quantity = parseFloat($row.find(".purchase-quantity").val()) || 0;
             const price = parseFloat($row.find(".product-price").val()) || 0;
             const discountPercent = parseFloat($row.find(".discount-percent").val()) || 0;
-            const taxPercent = resolveRowTaxPercent($row);
+            const taxPercent = canManageTax ? resolveRowTaxPercent($row) : 0;
             $row.attr('data-tax-percent', taxPercent);
 
             // Calculate discounted unit cost
@@ -975,13 +1351,15 @@
             const lineSubTotal = unitCost * quantity;
 
             // Calculate tax amount and line total
-            const taxAmount = (lineSubTotal * taxPercent) / 100;
+            const taxAmount = canManageTax ? (lineSubTotal * taxPercent) / 100 : 0;
             const lineTotal = lineSubTotal + taxAmount;
 
             // Update inputs and displays
             $row.find(".unit-cost").val(unitCost.toFixed(2));
-            $row.find(".net-unit-cost").val((unitCost + (unitCost * taxPercent / 100)).toFixed(2));
-            $row.find(".tax-amount").val(taxAmount.toFixed(2));
+            $row.find(".net-unit-cost").val((unitCost + (canManageTax ? unitCost * taxPercent / 100 : 0)).toFixed(2));
+            if (canManageTax) {
+                $row.find(".tax-amount").val(taxAmount.toFixed(2));
+            }
             $row.find(".line-total").text(lineTotal.toFixed(2));
 
             // Recalculate profit margin based on current retail price and unit cost
@@ -1053,35 +1431,6 @@
             });
         }
 
-        function getLatestBatchPrices(product) {
-            // Helper function to get latest batch prices
-            if (!product.batches || product.batches.length === 0) {
-                return {
-                    wholesale_price: product.wholesale_price || 0,
-                    special_price: product.special_price || 0,
-                    max_retail_price: product.max_retail_price || 0,
-                    retail_price: product.retail_price || 0,
-                    unit_cost: product.price || 0,
-                    batch_no: product.batch_no || '',
-                    expiry_date: product.expiry_date || ''
-                };
-            }
-
-            // Sort by creation date to get latest batch
-            const latestBatch = product.batches.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[
-                0];
-
-            return {
-                wholesale_price: latestBatch.wholesale_price || product.wholesale_price || 0,
-                special_price: latestBatch.special_price || product.special_price || 0,
-                max_retail_price: latestBatch.max_retail_price || product.max_retail_price || 0,
-                retail_price: latestBatch.retail_price || product.retail_price || 0,
-                unit_cost: latestBatch.unit_cost || product.price || 0,
-                batch_no: latestBatch.batch_no || product.batch_no || '',
-                expiry_date: latestBatch.expiry_date || product.expiry_date || ''
-            };
-        }
-
         // Make updateFooter globally accessible for modal
         window.updateFooter = function() {
             let totalItems = 0;
@@ -1114,7 +1463,9 @@
 
             $('#total-items').text(totalItemsDisplay);
             $('#subtotal-amount').text(subtotalAmount.toFixed(2));
-            $('#total-tax-amount').text(totalTaxAmount.toFixed(2));
+            if (canManageTax) {
+                $('#total-tax-amount').text(totalTaxAmount.toFixed(2));
+            }
             $('#net-total-amount').text(netTotalAmount.toFixed(2));
             $('#total').val(netTotalAmount.toFixed(2));
 
@@ -1374,8 +1725,6 @@
 
                 const lines = [...purchase.purchase_products].sort((a, b) => a.id - b.id);
 
-                lines.forEach((line) => trackPurchaseLineAdd(line.product_id));
-
                 lines.forEach((product) => {
                     const productData = {
                         id: product.product_id,
@@ -1404,7 +1753,9 @@
                         retail_price: product.retail_price != null ? product.retail_price : (product.batch ? product.batch.retail_price : null),
                         quantity: product.quantity,
                         free_quantity: product.free_quantity || 0,
-                        claim_free_quantity: product.claim_free_quantity || 0
+                        claim_free_quantity: product.claim_free_quantity || 0,
+                        batch_no: product.batch ? product.batch.batch_no : '',
+                        expiry_date: product.batch ? product.batch.expiry_date : '',
                     };
 
                     addProductToTable(productData, true, batchPrices);
@@ -1877,8 +2228,13 @@
             // FIX: Send discount and tax fields to server
             formData.append('discount_type', $('#discount-type').val() || '');
             formData.append('discount_amount', $('#discount-amount').val() || 0);
-            formData.append('tax_type', $('#tax-type').val() || '');
-            formData.append('tax_amount', parseFloat($('#tax-display').text().replace(/[^0-9.-]/g, '')) || 0);
+            if (canManageTax) {
+                formData.append('tax_type', $('#tax-type').val() || '');
+                formData.append('tax_amount', parseFloat($('#tax-display').text().replace(/[^0-9.-]/g, '')) || 0);
+            } else {
+                formData.append('tax_type', '');
+                formData.append('tax_amount', 0);
+            }
 
             // Save in oldest-first order so DB id DESC matches LIFO screen order on view/print
             const allRows = getPurchaseProductTableRowsForSave();
@@ -2533,6 +2889,7 @@
             }
             purchaseProductTable = null;
             cleanupPurchaseTablePlaceholders();
+            applyPurchaseColumnVisibility(purchaseTableColumns);
 
             console.log('🚀 Initializing Purchase Page...');
 
@@ -2541,6 +2898,58 @@
 
             // 3. Initialize autocomplete (only once)
             initAutocomplete();
+
+            $('#purchaseBatchExpiryBatchInput').on('input change', function() {
+                const product = $('#purchaseBatchExpiryModal').data('product');
+                if (!product) {
+                    return;
+                }
+                const prices = getPricesForPurchaseBatch(product, $(this).val());
+                if (prices.expiry_date && purchaseTableColumns.expiry_date === true) {
+                    $('#purchaseBatchExpiryInput').val(prices.expiry_date);
+                }
+                updatePurchaseBatchExpiryPriceHint(product, prices);
+            });
+
+            $('#purchaseBatchExpiryConfirm').on('click', function() {
+                const product = $('#purchaseBatchExpiryModal').data('product');
+                const showExpiry = purchaseTableColumns.expiry_date === true;
+                const showBatch = purchaseTableColumns.batch === true;
+                const expiryDate = showExpiry ? ($('#purchaseBatchExpiryInput').val() || '').trim() : '';
+                const batchNo = showBatch ? ($('#purchaseBatchExpiryBatchInput').val() || '').trim() : '';
+
+                if (showExpiry && !expiryDate) {
+                    toastr.warning('Please select expiry date.', 'Required');
+                    $('#purchaseBatchExpiryInput').focus();
+                    return;
+                }
+                if (showBatch && !batchNo) {
+                    toastr.warning('Please enter batch number.', 'Required');
+                    $('#purchaseBatchExpiryBatchInput').focus();
+                    return;
+                }
+
+                purchaseBatchExpiryConfirmed = true;
+                if (purchaseBatchExpiryResolve) {
+                    purchaseBatchExpiryResolve({ batch_no: batchNo, expiry_date: expiryDate });
+                    purchaseBatchExpiryResolve = null;
+                }
+
+                const modalEl = document.getElementById('purchaseBatchExpiryModal');
+                if (modalEl && window.bootstrap && bootstrap.Modal) {
+                    bootstrap.Modal.getOrCreateInstance(modalEl).hide();
+                } else {
+                    $('#purchaseBatchExpiryModal').modal('hide');
+                }
+            });
+
+            $('#purchaseBatchExpiryModal').on('hidden.bs.modal', function() {
+                if (!purchaseBatchExpiryConfirmed && purchaseBatchExpiryResolve) {
+                    purchaseBatchExpiryResolve(null);
+                    purchaseBatchExpiryResolve = null;
+                }
+                purchaseBatchExpiryConfirmed = false;
+            });
 
             // 4. Setup location change handler
             $('#services').off('change').on('change', function() {
@@ -2606,7 +3015,8 @@
                         const iframe = $("#purchase-pdfViewer");
                         iframe.attr("src", blobUrl);
                         iframe.show();
-                        $("#purchase-selectedImage").hide();
+                        $("#purchase-selectedImage").addClass('d-none');
+                        showPurchasePreview();
 
                         // Add fallback link in case iframe doesn't work
                         iframe.after(`
@@ -2631,47 +3041,25 @@
                             }
                         }, 1500);
 
-                        // Update the help text to show PDF is loaded
-                        $(".preview-container .text-muted").html(
-                            '<i class="fas fa-file-pdf text-danger"></i> PDF file loaded successfully'
-                        );
-
                         toastr.success('PDF file uploaded successfully!', 'File Uploaded');
                     };
                     reader.readAsArrayBuffer(file);
                 } else if (file.type.startsWith("image/")) {
                     reader.onload = function(e) {
-                        $("#purchase-selectedImage").attr("src", e.target.result);
-                        $("#purchase-selectedImage").show();
+                        $("#purchase-selectedImage").attr("src", e.target.result).removeClass('d-none');
                         $("#purchase-pdfViewer").hide();
-                        $("#pdf-fallback").remove(); // Remove any PDF fallback
-
-                        // Reset help text
-                        $(".preview-container .text-muted").html(
-                            '<i class="fas fa-info-circle"></i> Upload a file to see preview (Images & PDFs supported)'
-                        );
+                        $("#pdf-fallback").remove();
+                        showPurchasePreview();
 
                         toastr.success('Image file uploaded successfully!', 'File Uploaded');
                     };
                     reader.readAsDataURL(file);
                 } else {
                     // Handle other supported file types (CSV, ZIP, DOC, etc.)
-                    $("#purchase-selectedImage").attr("src",
-                        "/assets/images/No Product Image Available.png");
-                    $("#purchase-selectedImage").show();
-                    $("#purchase-pdfViewer").hide();
-                    $("#pdf-fallback").remove(); // Remove any PDF fallback
-
-                    // Update help text to show file type
-                    const fileType = file.name.split('.').pop().toUpperCase();
-                    $(".preview-container .text-muted").html(
-                        `<i class="fas fa-file text-primary"></i> ${fileType} file uploaded (Preview not available)`
-                    );
-
+                    hidePurchasePreview();
                     toastr.success(
                         'File uploaded successfully. Preview not available for this file type.',
                         'File Uploaded');
-                    // Don't call readAsDataURL for non-preview files
                     return;
                 }
 
@@ -2686,13 +3074,23 @@
                     // Already called above
                 }
             } else {
-                // No file selected or file input cleared
-                $("#purchase-selectedImage").attr("src",
-                    "/assets/images/No Product Image Available.png");
-                $("#purchase-selectedImage").show();
-                $("#purchase-pdfViewer").hide();
+                hidePurchasePreview();
             }
         });
+
+        function showPurchasePreview() {
+            $('#purchase-preview-wrap').addClass('has-preview');
+            if (typeof window.setPurchaseAttachmentVisible === 'function') {
+                window.setPurchaseAttachmentVisible(true);
+            }
+        }
+
+        function hidePurchasePreview() {
+            $('#purchase-preview-wrap').removeClass('has-preview');
+            $("#purchase-selectedImage").addClass('d-none').attr('src', '');
+            $("#purchase-pdfViewer").hide().attr('src', '');
+            $("#pdf-fallback").remove();
+        }
 
         // Function to clear file upload and reset preview
         function clearFileUpload() {
@@ -2703,15 +3101,7 @@
             }
 
             $('#purchase_attach_document').val('');
-            $("#purchase-selectedImage").attr("src", "/assets/images/No Product Image Available.png");
-            $("#purchase-selectedImage").show();
-            $("#purchase-pdfViewer").hide();
-            $("#purchase-pdfViewer").attr("src", "");
-            $("#pdf-fallback").remove(); // Remove PDF fallback if exists
-
-            // Reset help text
-            $(".preview-container .text-muted").html(
-                '<i class="fas fa-info-circle"></i> Upload a file to see preview (Images & PDFs supported)');
+            hidePurchasePreview();
         }
 
         // Add clear button functionality (if needed)

@@ -214,17 +214,20 @@ function mergeExistingRowIfPossible({
 
     const subtotalElement = existingRow.querySelector('.subtotal');
     const vatElement = existingRow.querySelector('.vat-amount');
-    const taxPercent = parseFloat(existingRow.getAttribute('data-tax-percent')) || 0;
-    const taxType = (existingRow.getAttribute('data-selling-price-tax-type') || 'inclusive').toLowerCase();
+    const canManageTax = window.canManageTax === true;
+    const taxPercent = canManageTax ? (parseFloat(existingRow.getAttribute('data-tax-percent')) || 0) : 0;
+    const taxType = canManageTax ? (existingRow.getAttribute('data-selling-price-tax-type') || 'inclusive').toLowerCase() : 'inclusive';
     const baseSubtotal = newQuantity * finalPrice;
-    const lineTaxAmount = (taxType === 'exclusive' && taxPercent > 0)
+    const lineTaxAmount = (canManageTax && taxType === 'exclusive' && taxPercent > 0)
         ? (baseSubtotal * taxPercent / 100)
         : 0;
     const updatedSubtotal = baseSubtotal + lineTaxAmount;
     subtotalElement.textContent = formatAmountWithSeparators(updatedSubtotal.toFixed(2));
     subtotalElement.setAttribute('data-total', updatedSubtotal.toFixed(2));
-    vatElement.textContent = formatAmountWithSeparators(lineTaxAmount.toFixed(2));
-    vatElement.setAttribute('data-vat', lineTaxAmount.toFixed(2));
+    if (vatElement) {
+        vatElement.textContent = formatAmountWithSeparators(lineTaxAmount.toFixed(2));
+        vatElement.setAttribute('data-vat', lineTaxAmount.toFixed(2));
+    }
     existingRow.setAttribute('data-row-tax-amount', lineTaxAmount.toFixed(2));
 
     billingBody.insertBefore(existingRow, billingBody.firstChild);
@@ -430,14 +433,15 @@ async function addProductToBillingBody(
     }
 
     // ── Build new row ───────────────────────────────────────
+    const canManageTax = window.canManageTax === true;
     // Calculate initial VAT amount
-    const taxPercent = parseFloat(product.tax_percent || 0);
-    const taxType = (product.selling_price_tax_type || 'inclusive').toLowerCase();
+    const taxPercent = canManageTax ? parseFloat(product.tax_percent || 0) : 0;
+    const taxType = canManageTax ? (product.selling_price_tax_type || 'inclusive').toLowerCase() : 'inclusive';
     const baseSubtotal = parseFloat(initialQuantityValue) * finalPrice;
-    const initialVatAmount = (taxType === 'exclusive' && taxPercent > 0)
+    const initialVatAmount = (canManageTax && taxType === 'exclusive' && taxPercent > 0)
         ? (baseSubtotal * taxPercent / 100)
         : 0;
-    const initialTaxLabel = (taxPercent > 0)
+    const initialTaxLabel = (canManageTax && taxPercent > 0)
         ? `Tax ${taxPercent.toFixed(2)}% (${taxType})`
         : 'None (No Tax)';
 
@@ -450,8 +454,8 @@ async function addProductToBillingBody(
     row.setAttribute('data-unit-price', finalPrice);
     row.setAttribute('data-price-source', priceType);
     row.setAttribute('data-max-quantity', adjustedBatchQuantity);
-    row.setAttribute('data-tax-percent', parseFloat(product.tax_percent || 0).toFixed(2));
-    row.setAttribute('data-selling-price-tax-type', (product.selling_price_tax_type || 'inclusive'));
+    row.setAttribute('data-tax-percent', (canManageTax ? parseFloat(product.tax_percent || 0) : 0).toFixed(2));
+    row.setAttribute('data-selling-price-tax-type', canManageTax ? (product.selling_price_tax_type || 'inclusive') : 'inclusive');
     row.setAttribute('data-tax-label', initialTaxLabel);
     row.setAttribute('data-row-tax-amount', initialVatAmount.toFixed(2));
     // Layout helper: when free qty is disabled by role/setting, mark row so CSS can make QUANTITY full-width
@@ -492,6 +496,18 @@ async function addProductToBillingBody(
           + ' style="background:transparent;max-width:170px;font-size:inherit;color:inherit;">'
         : product.product_name;
 
+    const canViewProductCost = window.canViewProductCost === true;
+    const unitCostHint = batch
+        ? (batch.unit_cost || batch.purchase_price || 'N/A')
+        : (product.unit_cost || product.purchase_price || 'N/A');
+    const originalPriceHint = product.original_price || product.purchase_price || 'N/A';
+    const costHoverTitle = canViewProductCost
+        ? `Unit Cost: ${unitCostHint} | Original Price: ${originalPriceHint}`
+        : '';
+    const costTitleAttr = costHoverTitle
+        ? `title="${String(costHoverTitle).replace(/"/g, '&quot;')}" data-bs-toggle="tooltip" data-bs-placement="top"`
+        : '';
+
     row.innerHTML = `
         <td class="text-center counter-cell" style="vertical-align: middle; font-weight: bold; color: #000;"></td>
         <td>
@@ -499,13 +515,11 @@ async function addProductToBillingBody(
             <img src="${getSafeImageUrl(product)}"
                  style="width:50px; height:50px; margin-right:10px; border-radius:50%;"
                  class="product-image"
-                 title="Unit Cost: ${batch ? (batch.unit_cost || batch.purchase_price || 'N/A') : (product.unit_cost || product.purchase_price || 'N/A')} | Original Price: ${product.original_price || product.purchase_price || 'N/A'}"
+                 ${costTitleAttr}
                  alt="${product.product_name}"
-                 data-bs-toggle="tooltip"
-                 data-bs-placement="top"
                  onerror="this.onerror=null; this.src=(typeof getSafeImageUrl==='function'?getSafeImageUrl({}):'/assets/images/No Product Image Available.png');"/>
             <div class="product-info" style="min-width: 0; flex: 1;">
-            <div class="font-weight-bold product-name" style="word-break: break-word; max-width: 260px; line-height: 1.2;" title="Unit Cost: ${batch ? (batch.unit_cost || batch.purchase_price || 'N/A') : (product.unit_cost || product.purchase_price || 'N/A')} | Original Price: ${product.original_price || product.purchase_price || 'N/A'}">
+            <div class="font-weight-bold product-name" style="word-break: break-word; max-width: 260px; line-height: 1.2;" ${costHoverTitle ? `title="${String(costHoverTitle).replace(/"/g, '&quot;')}"` : ''}>
             ${nameDisplayHtml}
             <span class="badge bg-info ms-1">MRP: ${batch && batch.max_retail_price ? batch.max_retail_price : product.max_retail_price}</span>
 
@@ -525,10 +539,10 @@ async function addProductToBillingBody(
             </div>
         </td>
         <td>
-            <div class="d-flex justify-content-center">
-            <button class="btn btn-danger quantity-minus btn">-</button>
+            <div class="pos-qty-input-group d-inline-flex align-items-stretch justify-content-center">
+            <button type="button" class="btn btn-danger quantity-minus">-</button>
             <input type="number" value="${initialQuantityValue}" max="${adjustedBatchQuantity}" class="form-control quantity-input text-center" title="Available: ${adjustedBatchQuantity}" ${imeis.length > 0 ? 'readonly' : ''} step="${qtyInputStep}" pattern="${qtyInputPattern}" data-quantity="${initialQuantityValue}">
-            <button class="btn btn-success quantity-plus btn">+</button>
+            <button type="button" class="btn btn-success quantity-plus">+</button>
             </div>
             <div style="font-size: 0.85em; color: #888; text-align:center;">${unitName}</div>
         </td>
@@ -571,7 +585,7 @@ async function addProductToBillingBody(
                 data-max-retail-price="${batch ? batch.max_retail_price || product.max_retail_price : product.max_retail_price}"
                 min="0" ${(priceValidationEnabled === 1 && !canEditUnitPrice && !isEditing) ? 'readonly' : ''}>
         </td>
-        <td class="vat-amount text-center" data-vat="${initialVatAmount.toFixed(2)}" title="${initialTaxLabel}">${formatAmountWithSeparators(initialVatAmount.toFixed(2))}</td>
+        ${canManageTax ? `<td class="vat-amount text-center" data-vat="${initialVatAmount.toFixed(2)}" title="${initialTaxLabel}">${formatAmountWithSeparators(initialVatAmount.toFixed(2))}</td>` : ''}
         <td class="subtotal total-price text-center" data-total="${(parseFloat(initialQuantityValue) * finalPrice + initialVatAmount).toFixed(2)}">${formatAmountWithSeparators((parseFloat(initialQuantityValue) * finalPrice + initialVatAmount).toFixed(2))}</td>
         <td class="text-center"><button class="btn btn-danger btn-sm remove-btn" type="button" aria-label="Remove item"><i class="fas fa-trash-alt"></i></button></td>
         <td class="product-id d-none">${product.id}</td>

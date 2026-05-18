@@ -20,6 +20,28 @@
         window.invoiceSearchInProgress = false;
         window.productSearchInProgress = false;
         const canUseFreeQty = {!! json_encode($canUseFreeQty ?? false) !!};
+        const canManageTax = {!! json_encode($canManageTax ?? false) !!};
+
+        function setSaleReturnSubmitLabel(isEdit) {
+            const $btn = $('#srSubmitBtn');
+            if (!$btn.length) {
+                return;
+            }
+            $btn.html(isEdit
+                ? '<i class="fas fa-save me-1"></i> Update Return'
+                : '<i class="fas fa-check me-1"></i> Save Return');
+        }
+
+        function saleReturnVatCellHtml(vatPerUnit, taxPercent, sellingPriceTaxType, vatDisplayHtml) {
+            if (!canManageTax) {
+                return '';
+            }
+            const tp = parseFloat(taxPercent) || 0;
+            return `<td class="return-vat" data-vat-per-unit="${vatPerUnit}" data-tax-percent="${taxPercent}" data-selling-price-tax-type="${sellingPriceTaxType}">
+                <div class="vat-display">${vatDisplayHtml}</div>
+                ${tp > 0 ? `<small class="text-muted" style="font-size: 9px;">${tp.toFixed(0)}%</small>` : ''}
+            </td>`;
+        }
 
         /** Avoid "First null" in UI when API sends null last_name (template literals stringify null). */
         function formatCustomerName(customer) {
@@ -130,13 +152,14 @@
                         window.productSearchInProgress = true;
 
                         // Optionally, you can get locationId if you want to filter by location
-                        let locationId = $("#locationId").val();
+                        let locationId = getSaleReturnLocationId();
                         $.ajax({
                             url: "/products/stocks/autocomplete",
                             method: "GET",
                             data: {
                                 search: request.term,
-                                location_id: locationId, // Uncomment if you want to filter by location
+                                location_id: locationId,
+                                context: 'sale_return', // Include 0-stock products (customer can return sold-out items)
                                 per_page: 15
                             },
                             success: function(data) {
@@ -258,13 +281,12 @@
 
 
                 $("#locationId").on('change', function() {
+                    if ($('#withBill').is(':checked')) {
+                        return;
+                    }
                     $("#productsTableBody").empty();
-                    // Optionally, reset invoice/product search fields if needed
-                    $("#invoiceNo").val('');
                     $("#productSearch").val('');
-                    enableProductSearch();
-                    enableInvoiceSearch();
-                    calculateReturnTotal(); // Recalculate totals if needed
+                    calculateReturnTotal();
                 });
 
 
@@ -305,6 +327,9 @@
                 $('#withBill, #withoutBill').on('change', function() {
                     if ($('#withoutBill').is(':checked')) {
                         window.originalDiscountData = null;
+                        $('#discountType').val('');
+                        $('#discountAmount').val('');
+                        syncDiscountFieldsUI();
                     }
                     calculateReturnTotal();
                 });
@@ -327,6 +352,7 @@
             const isEditMode = window.location.pathname.includes('/sale-return/edit/');
 
             if (isEditMode && saleReturnId && !isNaN(saleReturnId)) {
+                setSaleReturnSubmitLabel(true);
                 console.log('✏️ Edit mode detected from URL - Loading existing data');
 
                 $.ajax({
@@ -352,13 +378,18 @@
                 $('#salesReturnForm').attr('data-edit-mode', 'true');
                 $('#salesReturnForm').attr('data-return-id', data.id);
 
-                // Update page title
+                // Update page title and submit button
                 $('#form-title').text('Edit Sale Return');
                 $('#breadcrumb-title').text('Edit Sale Return');
+                setSaleReturnSubmitLabel(true);
 
                 // Pre-select location and customer
                 setTimeout(function() {
-                    $('#locationId').val(data.location_id).trigger('change');
+                    if (data.sale_id) {
+                        setLocationId(data.location_id, data.location?.name);
+                    } else {
+                        $('#locationId').val(data.location_id).trigger('change');
+                    }
 
                     if (data.sale_id) {
                         // With bill mode
@@ -401,10 +432,17 @@
                             : ''
                     );
 
-                    // Load existing products into the table - handle both snake_case and camelCase
+                    // With bill edit: load all invoice lines (not only returned lines)
                     const returnProducts = data.return_products || data.returnProducts || [];
-                    console.log('Loading products count:', returnProducts.length);
-                    loadExistingProductsFromData(returnProducts);
+                    if (data.sale_id && data.sale && data.sale.invoice_no) {
+                        fetchSaleProducts(data.sale.invoice_no, {
+                            editReturnId: data.id,
+                            preserveDiscount: true,
+                        });
+                    } else {
+                        console.log('Loading products count:', returnProducts.length);
+                        loadExistingProductsFromData(returnProducts);
+                    }
                 }, 500);
             }
 
@@ -472,10 +510,7 @@
                                 <div class="free-quantity-error">Free quantity cannot exceed<br>the available amount.</div>
                             </td>`
                                 : `<td class="d-none"><input type="number" class="return-free-quantity" name="products[${index}][free_quantity]" value="0" style="display:none"></td>`}
-                            <td class="return-vat" data-vat-per-unit="${vatPerUnit}" data-tax-percent="${taxPercent}" data-selling-price-tax-type="${sellingPriceTaxType}">
-                                <div class="vat-display">Rs. ${(quantity * vatPerUnit).toFixed(2)}</div>
-                                ${taxPercent > 0 ? `<small class="text-muted" style="font-size: 9px;">${taxPercent.toFixed(0)}%</small>` : ''}
-                            </td>
+                            ${saleReturnVatCellHtml(vatPerUnit, taxPercent, sellingPriceTaxType, `Rs. ${(quantity * vatPerUnit).toFixed(2)}`)}
                             <td class="return-subtotal">Rs. ${subtotal.toFixed(2)}</td>
                             <td><button type="button" class="btn btn-danger remove-product"><i class="fas fa-trash-alt"></i></button></td>
                         </tr>
@@ -594,11 +629,17 @@
                 }
             });
 
-            function fetchSaleProducts(invoiceNo) {
-                console.log('fetchSaleProducts called with:', invoiceNo);
+            function fetchSaleProducts(invoiceNo, options) {
+                options = options || {};
+                console.log('fetchSaleProducts called with:', invoiceNo, options);
+
+                let fetchUrl = `/sales/${encodeURIComponent(invoiceNo)}`;
+                if (options.editReturnId) {
+                    fetchUrl += `?edit_return_id=${encodeURIComponent(options.editReturnId)}`;
+                }
 
                 $.ajax({
-                    url: `/sales/${invoiceNo}`,
+                    url: fetchUrl,
                     method: 'GET',
                     success: function(data) {
                         console.log('Sale data received:', data);
@@ -630,10 +671,10 @@
                             // Clear the invoice field
                             $("#invoiceNo").val('');
                             $("#sale-id").val('');
-
-                            // Reset display
-                            $("#displayInvoiceNo").html('<strong>Invoice No.:</strong>');
-                            $("#displayDate").html('<strong>Date:</strong>');
+                            $('#locationIdBill').val('');
+                            $('#displayLocation').html('<strong>Location:</strong> —');
+                            $("#displayInvoiceNo").html('<strong>Invoice:</strong> —');
+                            $("#displayDate").html('<strong>Date:</strong> —');
                             return;
                         }
 
@@ -652,36 +693,50 @@
                             const returnPrice = parseFloat(product.return_price || product.price || 0);
                             const discountInfo = `<small class="text-info">Return: Rs. ${returnPrice.toFixed(2)}/unit</small>`;
 
-                            // Get free quantity information
+                            const soldQty = parseFloat(product.quantity || 0);
+                            const returnableQty = parseFloat(product.current_quantity ?? soldQty);
+                            const prefillQty = parseFloat(product.return_quantity ?? 0);
                             const freeQuantity = parseFloat(product.free_quantity || 0);
-                            const currentFreeQuantity = parseFloat(product.current_free_quantity || freeQuantity);
+                            const currentFreeQuantity = parseFloat(
+                                product.current_free_quantity ?? freeQuantity
+                            );
+                            const prefillFreeQty = parseFloat(product.return_free_quantity ?? 0);
+                            const lineDisc = parseFloat(product.discount_amount || 0);
+                            const discLine = lineDisc > 0
+                                ? `<br><small class="text-muted">Line disc: Rs. ${lineDisc.toFixed(2)}</small>`
+                                : '';
 
-                            // VAT must be calculated from RETURN qty, not from original sold line total
                             const vatPerUnit = parseFloat(product.vat_per_unit || 0);
                             const taxPercent = parseFloat(product.tax_percent || 0);
                             const sellingPriceTaxType = String(product.selling_price_tax_type || 'exclusive').toLowerCase();
 
                             const row = `
-                                            <tr data-index="${index}">
+                                            <tr data-index="${index}" data-sale-product-id="${product.id}">
                                                 <td>${index + 1}</td>
                                                 <td>
                                                     ${product.product.product_name}<br>
                                                     <small class="text-muted">${product.product.sku}</small>
+                                                    ${discLine}
                                                 </td>
                                                 <td>
                                                     <div>Rs. ${returnPrice.toFixed(2)}</div>
                                                     ${discountInfo}
                                                 </td>
-                                                <td><del>${product.quantity}</del>  ${product.current_quantity} ${unitDisplay}</td>
+                                                <td>
+                                                    <span class="fw-semibold">${soldQty} ${unitDisplay}</span>
+                                                    ${returnableQty < soldQty ? `<br><small class="text-muted">Returnable: ${returnableQty}</small>` : ''}
+                                                </td>
                                                 <td>
                                                     <input ${inputAttrs} class="form-control return-quantity"
                                                            name="products[${index}][quantity]"
                                                            placeholder="Enter qty (optional)"
-                                                           max="${product.current_quantity}"
+                                                           max="${returnableQty}"
+                                                           value="${prefillQty > 0 ? prefillQty : ''}"
                                                            data-unit-price="${returnPrice}"
                                                            data-original-price="${returnPrice}"
                                                            data-product-id="${product.product.id}"
-                                                           data-batch-id="${product.batch_id}">
+                                                           data-sale-product-id="${product.id}"
+                                                           data-batch-id="${product.batch_id || ''}">
                                                     <div class="quantity-error">Quantity cannot exceed<br>the available amount.</div>
                                                 </td>
                                                 ${canUseFreeQty ? `<td>${freeQuantity > 0 ? '<del>' + freeQuantity + '</del>' : ''} ${currentFreeQuantity} ${unitDisplay}</td>` : ''}
@@ -692,15 +747,13 @@
                                                            placeholder="Free qty (optional)"
                                                            max="${currentFreeQuantity}"
                                                            data-product-id="${product.product.id}"
-                                                           data-batch-id="${product.batch_id}"
-                                                           value="0">
+                                                           data-sale-product-id="${product.id}"
+                                                           data-batch-id="${product.batch_id || ''}"
+                                                           value="${prefillFreeQty}">
                                                     <div class="free-quantity-error">Free quantity cannot exceed<br>the available amount.</div>
                                                 </td>`
                                                     : `<td class="d-none"><input type="number" class="return-free-quantity" name="products[${index}][free_quantity]" value="0" style="display:none"></td>`}
-                                                <td class="return-vat" data-vat-per-unit="${vatPerUnit}" data-tax-percent="${taxPercent}" data-selling-price-tax-type="${sellingPriceTaxType}">
-                                                    <div class="vat-display">Rs. 0.00</div>
-                                                    ${taxPercent > 0 ? `<small class="text-muted" style="font-size: 9px;">${taxPercent.toFixed(0)}%</small>` : ''}
-                                                </td>
+                                                ${saleReturnVatCellHtml(vatPerUnit, taxPercent, sellingPriceTaxType, 'Rs. 0.00')}
                                                 <td class="return-subtotal">Rs. 0.00</td>
                                                 <td><button type="button" class="btn btn-danger remove-product"><i class="fas fa-trash-alt"></i></button></td>
                                             </tr>
@@ -716,27 +769,29 @@
                         // Store original discount data for proportional calculation
                         window.originalDiscountData = data.original_discount || null;
 
-                        const od = window.originalDiscountData;
-                        const billDisc = parseFloat(od && od.discount_amount != null ? od.discount_amount : 0) || 0;
-                        if (od && billDisc > 0) {
-                            const ndt = normalizeBillDiscountType(od.discount_type);
-                            if (ndt === 'percentage') {
-                                $("#discountType").val('percentage');
-                                $("#discountAmount").val(billDisc.toFixed(2));
-                            } else if (ndt === 'fixed') {
-                                $("#discountType").val('flat');
-                                $("#discountAmount").val(billDisc.toFixed(2));
+                        if (!options.preserveDiscount) {
+                            const od = window.originalDiscountData;
+                            const billDisc = parseFloat(od && od.discount_amount != null ? od.discount_amount : 0) || 0;
+                            if (od && billDisc > 0) {
+                                const ndt = normalizeBillDiscountType(od.discount_type);
+                                if (ndt === 'percentage') {
+                                    $("#discountType").val('percentage');
+                                    $("#discountAmount").val(billDisc.toFixed(2));
+                                } else if (ndt === 'fixed') {
+                                    $("#discountType").val('flat');
+                                    $("#discountAmount").val(billDisc.toFixed(2));
+                                } else {
+                                    $("#discountType").val("");
+                                    $("#discountAmount").val("");
+                                }
                             } else {
                                 $("#discountType").val("");
                                 $("#discountAmount").val("");
                             }
-                        } else {
-                            $("#discountType").val("");
-                            $("#discountAmount").val("");
                         }
 
                         fetchCustomerDetails(data.customer_id);
-                        setLocationId(data.location_id);
+                        setLocationId(data.location_id, data.location_name);
 
                         // Improved input handler for decimals and cursor position
                         $(".return-quantity").off('input').on('input', function(e) {
@@ -841,6 +896,10 @@
                             }
                         });
 
+                        // Recalculate row VAT/subtotals when edit pre-filled quantities
+                        $("#productsTableBody tr").each(function() {
+                            updateRowTotals($(this));
+                        });
                         calculateReturnTotal();
                     },
                     error: function(xhr, status, error) {
@@ -967,15 +1026,29 @@
                 });
             }
 
-            function setLocationId(locationId) {
-                const locationSelect = $("#locationId");
-                locationSelect.val(locationId);
-                if (locationSelect.val() === null) {
-                    $("#displayLocation").html('<strong>Business Location:</strong> N/A');
-                } else {
-                    $("#displayLocation").html(
-                        `<strong>Business Location:</strong> ${locationSelect.find("option:selected").text()}`);
+            function getSaleReturnLocationId() {
+                if ($('#withBill').is(':checked')) {
+                    return $('#locationIdBill').val() || '';
                 }
+                return $('#locationId').val() || '';
+            }
+
+            function setLocationId(locationId, locationName) {
+                const id = locationId ? String(locationId) : '';
+                $('#locationIdBill').val(id);
+
+                const locationSelect = $('#locationId');
+                if (id && locationSelect.find(`option[value="${id}"]`).length) {
+                    locationSelect.val(id);
+                }
+
+                let label = locationName || '';
+                if (!label && id) {
+                    label = locationSelect.find('option:selected').text() || '';
+                }
+                $('#displayLocation').html(
+                    `<strong>Location:</strong> ${label || '—'}`
+                );
             }
 
             /** Parse "Rs. 27,950.00" / "Rs. 6950" style amounts from table cells */
@@ -1020,6 +1093,13 @@
             function updateRowTotals($row) {
                 const quantity = parseFloat($row.find('.return-quantity').val()) || 0;
                 const unitPrice = parseFloat($row.find('.return-quantity').data('unit-price')) || 0;
+
+                if (!canManageTax) {
+                    const lineSubtotal = quantity * unitPrice;
+                    $row.find('.return-subtotal').text(`Rs. ${lineSubtotal.toFixed(2)}`);
+                    return;
+                }
+
                 const vatPerUnit = parseFloat($row.find('.return-vat').data('vat-per-unit')) || 0;
                 const taxType = String($row.find('.return-vat').data('selling-price-tax-type') || 'exclusive').toLowerCase();
 
@@ -1043,9 +1123,11 @@
                     totalSubtotal += parseRsAmount($(this).text());
                 });
 
-                $('#productsTableBody .vat-display').each(function() {
-                    totalVat += parseRsAmount($(this).text());
-                });
+                if (canManageTax) {
+                    $('#productsTableBody .vat-display').each(function() {
+                        totalVat += parseRsAmount($(this).text());
+                    });
+                }
 
                 $('#productsTableBody .return-quantity').each(function() {
                     const qty = parseFloat($(this).val()) || 0;
@@ -1096,6 +1178,7 @@
                     if (frontendDiscountType) {
                         $("#discountType").val(frontendDiscountType);
                         $("#discountAmount").val(discountAmount.toFixed(2));
+                        syncDiscountFieldsUI();
                     }
 
                     console.log('Proportional discount calculated:', {
@@ -1107,39 +1190,74 @@
                         discountType: discountType
                     });
                 } else {
-                    // Manual discount override
-                    discountType = $('#discountType').val();
+                    // Manual discount — only when a type is selected (None = no discount)
+                    discountType = ($('#discountType').val() || '').trim();
                     discountAmount = parseFloat($('#discountAmount').val()) || 0;
 
-                    if (discountType === 'percentage') {
+                    if (!discountType) {
+                        totalDiscount = 0;
+                        discountAmount = 0;
+                    } else if (discountType === 'percentage') {
                         totalDiscount = (totalSubtotal * discountAmount) / 100;
-                    } else {
-                        // flat / fixed / empty treat as fixed rupee amount
+                    } else if (discountType === 'flat') {
                         totalDiscount = discountAmount;
+                    } else {
+                        totalDiscount = 0;
                     }
                 }
 
-                const subtotalExVat = Math.max(0, totalSubtotal - totalVat);
-                const returnTotal = subtotalExVat - totalDiscount + totalVat;
-                $('#returnSubtotalDisplay').text(`Rs. ${subtotalExVat.toFixed(2)}`);
-                $('#totalReturnVat').text(`Rs. ${totalVat.toFixed(2)}`);
+                let returnTotal;
+                if (canManageTax) {
+                    const subtotalExVat = Math.max(0, totalSubtotal - totalVat);
+                    returnTotal = subtotalExVat - totalDiscount + totalVat;
+                    $('#returnSubtotalDisplay').text(`Rs. ${subtotalExVat.toFixed(2)}`);
+                    $('#totalReturnVat').text(`Rs. ${totalVat.toFixed(2)}`);
+                } else {
+                    returnTotal = Math.max(0, totalSubtotal - totalDiscount);
+                    $('#returnSubtotalDisplay').text(`Rs. ${totalSubtotal.toFixed(2)}`);
+                }
                 $('#totalReturnDiscount').text(`Rs. ${totalDiscount.toFixed(2)}`);
                 $('#returnTotalDisplay').text(`Rs. ${returnTotal.toFixed(2)}`);
                 $('#returnTotal').val(returnTotal.toFixed(2));
             }
 
-            $('#discountType, #discountAmount').on('change input', function() {
+            function syncDiscountFieldsUI() {
+                const type = ($('#discountType').val() || '').trim();
+                const $amount = $('#discountAmount');
+                if (!type) {
+                    $amount.val('').prop('disabled', true).attr('readonly', true);
+                } else {
+                    $amount.prop('disabled', false).removeAttr('readonly');
+                }
+            }
+
+            $('#discountType').on('change', function() {
+                if (!$(this).val()) {
+                    $('#discountAmount').val('');
+                }
+                syncDiscountFieldsUI();
                 calculateReturnTotal();
             });
+
+            $('#discountAmount').on('input change', function() {
+                if (!$('#discountType').val()) {
+                    return;
+                }
+                calculateReturnTotal();
+            });
+
+            syncDiscountFieldsUI();
 
             // Removed confirmation dialog code since we now do instant removal
 
             function resetInvoice() {
-                $("#displayInvoiceNo").html('<strong>Invoice No.:</strong> PR0001');
-                $("#displayDate").html('<strong>Date:</strong> 01/16/2025');
-                $("#displayCustomer").html('<strong>Customer:</strong>');
-                $("#displayLocation").html('<strong>Business Location:</strong>');
-                $("#invoiceNo").val('');
+                $('#displayInvoiceNo').html('<strong>Invoice:</strong> —');
+                $('#displayDate').html('<strong>Date:</strong> —');
+                $('#displayCustomer').html('<strong>Customer:</strong> —');
+                $('#displayLocation').html('<strong>Location:</strong> —');
+                $('#invoiceNo').val('');
+                $('#sale-id').val('');
+                $('#locationIdBill').val('');
                 enableProductSearch();
             }
 
@@ -1185,13 +1303,13 @@
                     ${canUseFreeQty
                         ? `<td><input type="number" class="form-control return-free-quantity" name="products[${product.value}][free_quantity]" placeholder="Free qty" min="0" step="any" data-product-id="${product.value}" value="0"></td>`
                         : `<td class="d-none"><input type="number" class="return-free-quantity" name="products[${product.value}][free_quantity]" value="0" style="display:none"></td>`}
-                    <td class="return-vat" data-vat-per-unit="${defaultVatPerUnit}" data-tax-percent="${taxPercent}" data-selling-price-tax-type="${sellingPriceTaxType}" style="text-align: center;">
+                    ${canManageTax ? `<td class="return-vat" data-vat-per-unit="${defaultVatPerUnit}" data-tax-percent="${taxPercent}" data-selling-price-tax-type="${sellingPriceTaxType}" style="text-align: center;">
                         <div class="vat-display">Rs. 0.00</div>
                         <select class="form-select form-select-sm return-tax-select" style="margin-top:4px; font-size:11px;">
                             <option value="0">NON VAT</option>
                             ${taxPercent > 0 ? `<option value="${taxPercent}" selected>VAT (${taxPercent.toFixed(0)}%)</option>` : ''}
                         </select>
-                    </td>
+                    </td>` : ''}
                     <td class="return-subtotal">Rs. 0.00</td>
                     <td><button type="button" class="btn btn-danger remove-product"><i class="fas fa-trash-alt"></i></button></td>
                 </tr>
@@ -1312,8 +1430,10 @@
                     const isValid = validateForm();
                     console.log('Form validation result:', isValid);
 
-                    const $submitButton = $('.btn[type="submit"]');
-                    const originalButtonText = isEditMode ? 'Update' : 'Save';
+                    const $submitButton = $('#srSubmitBtn').length ? $('#srSubmitBtn') : $('.btn[type="submit"]');
+                    const originalButtonText = isEditMode
+                        ? '<i class="fas fa-save me-1"></i> Update Return'
+                        : '<i class="fas fa-check me-1"></i> Save Return';
                     $submitButton.prop('disabled', true).html('Processing...');
 
                     if (isValid) {
@@ -1332,7 +1452,9 @@
                             if (quantity > 0 || freeQuantity > 0) {
                                 const $input = $(row).find('.return-quantity');
                                 const $vatCell = $(row).find('.return-vat');
-                                const lineVat = parseRsAmount($(row).find('.vat-display').text());
+                                const lineVat = canManageTax
+                                    ? parseRsAmount($(row).find('.vat-display').text())
+                                    : 0;
                                 const product = {
                                     product_id: $input.data('productId'),
                                     quantity: quantity,
@@ -1341,11 +1463,14 @@
                                     return_price: $input.data('unitPrice'), // This is the actual return price
                                     subtotal: parseRsAmount($(row).find('.return-subtotal').text()),
                                     batch_id: $input.data('batchId') || null,
+                                    sale_product_id: $input.data('saleProductId') || null,
                                     price_type: "retail",
                                     discount: 0,
                                     tax: lineVat,
-                                    tax_percent: parseFloat($vatCell.data('tax-percent')) || 0,
-                                    selling_price_tax_type: String($vatCell.data('selling-price-tax-type') || 'exclusive'),
+                                    tax_percent: canManageTax ? (parseFloat($vatCell.data('tax-percent')) || 0) : 0,
+                                    selling_price_tax_type: canManageTax
+                                        ? String($vatCell.data('selling-price-tax-type') || 'exclusive')
+                                        : 'exclusive',
                                 };
                                 jsonData.products.push(product);
                             }
@@ -1358,12 +1483,27 @@
                             return;
                         }
 
-                        jsonData.discount_type = $('#discountType').val() || null;
-                        jsonData.discount_amount = parseFloat($('#discountAmount').val()) || 0;
+                        const discType = ($('#discountType').val() || '').trim() || null;
+                        jsonData.discount_type = discType;
+                        jsonData.discount_amount = discType
+                            ? (parseFloat($('#discountAmount').val()) || 0)
+                            : 0;
 
                         // Additional validation for billing options
                         if (withBill && !jsonData.sale_id) {
                             toastr.error("Please select a valid invoice first.");
+                            $submitButton.prop('disabled', false).html(originalButtonText);
+                            return;
+                        }
+
+                        jsonData.location_id = getSaleReturnLocationId();
+                        if (withBill && !jsonData.location_id) {
+                            toastr.error('Return location could not be determined from the invoice. Please search the invoice again.');
+                            $submitButton.prop('disabled', false).html(originalButtonText);
+                            return;
+                        }
+                        if (!withBill && !jsonData.location_id) {
+                            toastr.error('Please select a return location.');
                             $submitButton.prop('disabled', false).html(originalButtonText);
                             return;
                         }
@@ -1444,20 +1584,25 @@
                 // Validate required fields based on billing option
                 const fieldsToValidate = [
                     { field: '#date', message: 'Please select a return date' },
-                    { field: '#locationId', message: 'Please select a location' },
                     { field: '#notes', message: 'Please enter a reason for the return' }
                 ];
 
-                // Add conditional validation
                 if (withBill) {
                     fieldsToValidate.push({ field: '#invoiceNo', message: 'Please enter an invoice number' });
-                    // Also check if a valid sale is loaded
                     if (!$('#sale-id').val()) {
                         $('#invoiceNo').addClass('is-invalid');
-                        $('#invoiceNo').after('<div class="invalid-feedback">Please select a valid invoice</div>');
+                        $('#invoiceNo').after('<div class="invalid-feedback">Please search and load a valid invoice</div>');
+                        isValid = false;
+                    }
+                    if (!getSaleReturnLocationId()) {
+                        $('#invoiceNo').addClass('is-invalid');
+                        if (!$('#invoiceNo').next('.invalid-feedback').length) {
+                            $('#invoiceNo').after('<div class="invalid-feedback">Invoice location missing. Search the invoice again.</div>');
+                        }
                         isValid = false;
                     }
                 } else {
+                    fieldsToValidate.push({ field: '#locationId', message: 'Please select a return location' });
                     fieldsToValidate.push({ field: '#customerId', message: 'Please select a customer' });
                 }
 

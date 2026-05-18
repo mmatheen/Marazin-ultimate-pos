@@ -18,6 +18,8 @@
             canDeleteSale:          {!! json_encode(auth()->check() && auth()->user()->can('delete sale')) !!},
             canEditProduct:         {!! json_encode(auth()->check() && auth()->user()->can('edit product')) !!},
             canDeleteProduct:       {!! json_encode(auth()->check() && auth()->user()->can('delete product')) !!},
+            canManageTax:           {!! json_encode($canManageTax ?? \App\Support\TaxSettingsAccess::canManage()) !!},
+            canViewProductCost:     {!! json_encode($canViewProductCost ?? false) !!},
             cashRegister: {
                 canPollCurrent: {!! json_encode(auth()->check() && (auth()->user()->can('view cash register') || auth()->user()->can('open register'))) !!},
                 canOpen:        {!! json_encode(auth()->check() && auth()->user()->can('open register')) !!},
@@ -113,6 +115,10 @@
     const freeQtyEnabled    = window.PosConfig.freeQty.enabled;
     const canUseFreeQty     = window.PosConfig.freeQty.canUse;
     const showFreeQtyColumn = freeQtyEnabled && canUseFreeQty;
+    const canManageTax      = window.PosConfig.permissions.canManageTax;
+    window.canManageTax     = canManageTax;
+    const canViewProductCost = window.PosConfig.permissions.canViewProductCost;
+    window.canViewProductCost = canViewProductCost;
 
     const userId            = window.PosConfig.auth.userId;
     const miscItemProductId = window.PosConfig.miscItemProductId;

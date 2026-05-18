@@ -12,8 +12,7 @@ class TaxRateController extends Controller
 {
     public function __construct()
     {
-        $this->middleware('permission:view settings', ['only' => ['index', 'getAll', 'edit']]);
-        $this->middleware('permission:edit business-settings', ['only' => ['store', 'update', 'destroy']]);
+        $this->middleware('permission:edit tax-settings', ['only' => ['index', 'getAll', 'edit', 'store', 'update', 'destroy']]);
     }
 
     public function index(): View

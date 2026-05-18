@@ -238,10 +238,11 @@ function calculateRowTotals(billingBody) {
 
         if (counterCell) counterCell.textContent = index + 1;
 
-        const taxPercent = parseFloat(row.getAttribute('data-tax-percent')) || 0;
-        const taxType = (row.getAttribute('data-selling-price-tax-type') || 'inclusive').toLowerCase();
+        const canManageTax = window.canManageTax === true;
+        const taxPercent = canManageTax ? (parseFloat(row.getAttribute('data-tax-percent')) || 0) : 0;
+        const taxType = canManageTax ? (row.getAttribute('data-selling-price-tax-type') || 'inclusive').toLowerCase() : 'inclusive';
         const baseSubtotal = qty * price;
-        const lineTaxAmount = (taxType === 'exclusive' && taxPercent > 0)
+        const lineTaxAmount = (canManageTax && taxType === 'exclusive' && taxPercent > 0)
             ? (baseSubtotal * taxPercent / 100)
             : 0;
         const subtotal   = baseSubtotal + lineTaxAmount;
@@ -357,8 +358,27 @@ function buildUnitSummary(billingBody, totalItems, totalFreeItems) {
     return unitDisplay;
 }
 
+function updateBillingSummaryPanelsVisibility(billingBody) {
+    const hasItems = !!(billingBody && billingBody.querySelectorAll('tr').length > 0);
+    const desktopPanel = document.getElementById('pos-billing-summary-panel');
+    const mobilePanel  = document.getElementById('pos-mobile-order-summary-panel');
+    const scrollWrap   = document.querySelector('.pos-mobile-scroll-wrapper');
+    if (desktopPanel) desktopPanel.classList.toggle('d-none', !hasItems);
+    if (mobilePanel) mobilePanel.classList.toggle('d-none', !hasItems);
+    if (scrollWrap && window.matchMedia('(max-width: 991px)').matches) {
+        const applyDockPadding = () => {
+            const dock = document.querySelector('.pos-mobile-checkout-dock');
+            const dockH = dock ? dock.offsetHeight : 0;
+            scrollWrap.style.paddingBottom = (dockH > 0 ? dockH + 16 : (hasItems ? 280 : 88)) + 'px';
+        };
+        requestAnimationFrame(applyDockPadding);
+    }
+}
+
 function writeTotalsToDom(billingBody, totals) {
     const { totalItems, totalFreeItems = 0, totalAmount, finalTotal, unitDisplay, totalDiscount = 0, totalVat = 0 } = totals;
+
+    updateBillingSummaryPanelsVisibility(billingBody);
 
     const fmt   = _fmtAmount;
     const setId = (id, val) => {
@@ -372,7 +392,9 @@ function writeTotalsToDom(billingBody, totals) {
     setId('modal-total-items', itemDisplay);
     setId('total-amount',      fmt(totalAmount.toFixed(2)));
     setId('final-total-amount', fmt(finalTotal.toFixed(2)));
-    setId('vat-total-amount', fmt(totalVat.toFixed(2)));
+    if (window.canManageTax === true) {
+        setId('vat-total-amount', fmt(totalVat.toFixed(2)));
+    }
 
     const totalEl  = document.getElementById('total');
     const payAmtEl = document.getElementById('payment-amount');
@@ -409,8 +431,10 @@ function writeTotalsToDom(billingBody, totals) {
         mobileTotalDiscountEl.textContent = totalDiscount > 0 ? '-Rs. ' + fmt(totalDiscount.toFixed(2)) : 'Rs. 0.00';
         mobileTotalDiscountEl.classList.toggle('text-danger', totalDiscount > 0);
     }
-    const mobileVatAmountEl = document.getElementById('mobile-vat-amount-text');
-    if (mobileVatAmountEl) mobileVatAmountEl.textContent = 'Rs. ' + fmt(totalVat.toFixed(2));
+    if (window.canManageTax === true) {
+        const mobileVatAmountEl = document.getElementById('mobile-vat-amount-text');
+        if (mobileVatAmountEl) mobileVatAmountEl.textContent = 'Rs. ' + fmt(totalVat.toFixed(2));
+    }
     const mobileFinalInlineEl = document.getElementById('mobile-final-total-inline');
     if (mobileFinalInlineEl) mobileFinalInlineEl.textContent = 'Rs. ' + fmt(finalTotal.toFixed(2));
     /* Single source: also update mobile footer so it matches order summary (no separate setInterval overwrite) */
@@ -1092,7 +1116,8 @@ window.Pos.Cart.updatePriceEditability        = updatePriceEditability;
 window.Pos.Cart.recalculateDiscountsFromPrice = recalculateDiscountsFromPrice;
 window.Pos.Cart.showQuantityLimitError        = showQuantityLimitError;
 window.Pos.Cart.validateAllQuantities         = validateAllQuantities;
-window.Pos.Cart.updatePaymentButtonsState     = updatePaymentButtonsState;
+window.Pos.Cart.updatePaymentButtonsState              = updatePaymentButtonsState;
+window.Pos.Cart.updateBillingSummaryPanelsVisibility = updateBillingSummaryPanelsVisibility;
 window.Pos.Cart.setupGlobalDiscountListeners  = setupGlobalDiscountListeners;
 
 // Legacy globals (used by older scripts / inline handlers)
@@ -1107,5 +1132,6 @@ window.recalculateDiscountsFromPrice = recalculateDiscountsFromPrice;
 window.showQuantityLimitError        = showQuantityLimitError;
 window.validateAllQuantities         = validateAllQuantities;
 window.getPosLiveFinalTotalFromCart  = getLiveFinalTotalFromCart;
-window.updatePaymentButtonsState     = updatePaymentButtonsState;
+window.updatePaymentButtonsState              = updatePaymentButtonsState;
+window.updateBillingSummaryPanelsVisibility = updateBillingSummaryPanelsVisibility;
 window.setupGlobalDiscountListeners  = setupGlobalDiscountListeners;

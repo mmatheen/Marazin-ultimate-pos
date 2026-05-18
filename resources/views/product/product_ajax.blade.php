@@ -166,7 +166,8 @@
     window.initialProductDataLoaded = false;
     window.initialProductData = null;
     window.initialDataFetchTime = null;
-
+    const canManageProductTax = {!! json_encode($canManageTax ?? \App\Support\TaxSettingsAccess::canManage()) !!};
+    window.canManageProductTax = canManageProductTax;
 
     $(document).ready(function() {
     var csrfToken = $('meta[name="csrf-token"]').attr('content'); // For CSRF token
@@ -601,6 +602,9 @@
 
    // Initialize Applicable Tax Dropdown with tax rates
    function initializeApplicableTaxDropdown() {
+       if (!canManageProductTax) {
+           return;
+       }
        const applicableTaxSelect = $('#edit_applicable_tax');
        if (!applicableTaxSelect.length) return; // Exit if dropdown doesn't exist
 
@@ -652,6 +656,7 @@
    }
 
    // Handle Applicable Tax dropdown change - auto-populate tax percent
+   if (canManageProductTax) {
    $('#edit_applicable_tax').on('change', function() {
        const selectedOption = $(this).find('option:selected');
        const selectedValue = $(this).val();
@@ -680,6 +685,9 @@
    // Initialize on page load
    initializeApplicableTaxDropdown();
    (function initializeTaxPercentDisplayFromExistingValue() {
+       if (!canManageProductTax) {
+           return;
+       }
        const existingTaxPercent = $('#edit_tax_percent').val();
        if (existingTaxPercent !== undefined && existingTaxPercent !== null && existingTaxPercent !== '') {
            $('#edit_tax_percent_display').text(parseFloat(existingTaxPercent).toFixed(2));
@@ -687,6 +695,7 @@
            $('#edit_tax_percent_display').text('--');
        }
    })();
+   }
     function populateProductDetails(product, mainCategories, subCategories, brands, units, locations) {
         $('#product_id').val(product.id);
         $('#edit_product_name').val(product.product_name);
@@ -698,14 +707,18 @@
         $('#edit_whole_sale_price').val(product.whole_sale_price || 0);
         $('#edit_special_price').val(product.special_price || 0);
         $('#edit_max_retail_price').val(product.max_retail_price || 0);
-        const productTaxPercent = product.tax_percent !== null && product.tax_percent !== undefined && product.tax_percent !== ''
-            ? parseFloat(product.tax_percent).toFixed(2)
-            : '';
-        $('#edit_tax_percent').val(productTaxPercent);
-        $('#edit_tax_percent_display').text(productTaxPercent || '--');
-            // Reset applicable tax dropdown to empty when loading product details
+        if (canManageProductTax) {
+            const productTaxPercent = product.tax_percent !== null && product.tax_percent !== undefined && product.tax_percent !== ''
+                ? parseFloat(product.tax_percent).toFixed(2)
+                : '';
+            $('#edit_tax_percent').val(productTaxPercent);
+            $('#edit_tax_percent_display').text(productTaxPercent || '--');
             $('#edit_applicable_tax').val('');
-        $('#edit_selling_price_tax_type').val(product.selling_price_tax_type || 'exclusive');
+            $('#edit_selling_price_tax_type').val(product.selling_price_tax_type || 'exclusive');
+        } else {
+            $('#edit_tax_percent').val('0');
+            $('#edit_selling_price_tax_type').val('exclusive');
+        }
         $('#edit_alert_quantity').val(product.alert_quantity || 0);
         $('#edit_product_type').val(product.product_type || "").trigger('change');
         $('#Enable_Product_description').prop('checked', product.is_imei_or_serial_no === 1);

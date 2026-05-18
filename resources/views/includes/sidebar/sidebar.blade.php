@@ -449,9 +449,9 @@
                                 <li><a href="{{ route('settings.index') }}" class="{{ set_active(['settings.index']) }}">General Settings</a></li>
                             @endcan
 
-                            @can('view settings')
+                            @if($canManageTax ?? false)
                                 <li><a href="{{ route('tax-rates.index') }}" class="{{ set_active(['tax-rates']) }}">Tax Rates</a></li>
-                            @endcan
+                            @endif
 
                         </ul>
                     </li>

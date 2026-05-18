@@ -135,7 +135,7 @@ function renderCategories(categories) {
 
                 const allButton = document.createElement('button');
                 allButton.textContent = 'All';
-                allButton.classList.add('btn', 'btn-outline-green', 'me-2');
+                allButton.classList.add('btn', 'btn-outline-green');
                 allButton.addEventListener('click', () => {
                     if (typeof window.filterProductsByCategory === 'function') {
                         window.filterProductsByCategory(category.id);
@@ -857,7 +857,7 @@ function displayMobileProducts(products, append = false) {
         const handleAdd = (e) => {
             if (e && e.stopPropagation) e.stopPropagation();
             const productStock = window.allProducts.find(s => String(s.product.id) === String(product.id));
-            if (productStock) showMobileQuantityModal(productStock);
+            if (productStock) handleMobileProductAdd(productStock);
         };
         if (addBtn) addBtn.addEventListener('click', handleAdd);
         productCard.addEventListener('click', (e) => {
@@ -867,27 +867,76 @@ function displayMobileProducts(products, append = false) {
     });
 }
 
+// ---- MOBILE PRODUCT ADD HELPERS ----
+
+function closeMobileProductModalIfOpen() {
+    const mobileModal = document.getElementById('mobileProductModal');
+    if (!mobileModal) return;
+    const instance = bootstrap.Modal.getInstance(mobileModal);
+    if (instance) instance.hide();
+}
+
+function handleMobileProductAdd(productStock) {
+    const qtyModalEl = document.getElementById('mobileQuantityModal');
+    if (qtyModalEl) {
+        const qtyInst = bootstrap.Modal.getInstance(qtyModalEl);
+        if (qtyInst) qtyInst.hide();
+    }
+
+    if (typeof window.productRequiresBatchPriceSelection === 'function' &&
+        window.productRequiresBatchPriceSelection(productStock)) {
+        closeMobileProductModalIfOpen();
+
+        const product = productStock.product;
+        const selectedLocationId = window.selectedLocationId;
+        const batches = typeof window.getSellableBatchesForLocation === 'function'
+            ? window.getSellableBatchesForLocation(productStock, selectedLocationId)
+            : [];
+        const currentCustomer = window.Pos.Customer.getCurrentCustomer();
+
+        window._pendingMobileAddAfterBatch = {
+            productStock,
+            flow: product.is_imei_or_serial_no === 1 ? 'imei' : 'qty',
+        };
+
+        if (typeof window.showBatchPriceSelectionModal === 'function') {
+            window.showBatchPriceSelectionModal(product, productStock, batches, currentCustomer);
+        }
+        return;
+    }
+
+    showMobileQuantityModal(productStock);
+}
+
 // ---- MOBILE QUANTITY MODAL ----
 
-function showMobileQuantityModal(productStock) {
-    const product    = productStock.product;
+function showMobileQuantityModal(productStock, batchContext = null) {
+    const product    = batchContext?.productWithBatchPrices || productStock.product;
     const hasDecimal = product.unit && (product.unit.allow_decimal === true || product.unit.allow_decimal === 1);
 
     const selectedLocationId = window.selectedLocationId;
 
-    // Calculate available stock
+    // Calculate available stock (selected batch only when batch was picked first)
     let locationQty = 0;
-    const batches = (typeof window.normalizeBatches === 'function')
-        ? window.normalizeBatches(productStock)
-        : (Array.isArray(productStock.batches) ? productStock.batches : []);
+    if (batchContext?.selectedBatch) {
+        const lb = batchContext.selectedBatch.location_batches?.find(l =>
+            String(l.location_id) === String(selectedLocationId));
+        locationQty = (parseFloat(lb?.quantity) || 0) + (parseFloat(lb?.free_quantity) || 0);
+    } else {
+        const batches = (typeof window.normalizeBatches === 'function')
+            ? window.normalizeBatches(productStock)
+            : (Array.isArray(productStock.batches) ? productStock.batches : []);
 
-    batches.forEach(batch => {
-        if (batch.location_batches) {
-            batch.location_batches.forEach(lb => {
-                if (lb.location_id == selectedLocationId) locationQty += parseFloat(lb.quantity);
-            });
-        }
-    });
+        batches.forEach(batch => {
+            if (batch.location_batches) {
+                batch.location_batches.forEach(lb => {
+                    if (lb.location_id == selectedLocationId) {
+                        locationQty += (parseFloat(lb.quantity) || 0) + (parseFloat(lb.free_quantity) || 0);
+                    }
+                });
+            }
+        });
+    }
 
     const availableStock = product.stock_alert === 0 ? Infinity : locationQty;
     const unitName       = product.unit && product.unit.name ? product.unit.name : 'Pc(s)';
@@ -958,9 +1007,33 @@ function showMobileQuantityModal(productStock) {
             return;
         }
 
-        if (typeof window.addProductToTable === 'function') {
-            window.addProductToTable(product, qty);
+        if (batchContext?.selectedBatch && typeof window.Pos?.Billing?.addProductToBillingBody === 'function') {
+            const currentCustomer = window.Pos.Customer.getCurrentCustomer();
+            const autoPriceType = typeof window.resolveAutoPriceType === 'function'
+                ? window.resolveAutoPriceType(
+                    currentCustomer.customer_type,
+                    batchContext.selectedBatch,
+                    batchContext.productWithBatchPrices
+                )
+                : 'retail';
+
+            window.Pos.Billing.addProductToBillingBody(
+                batchContext.productWithBatchPrices,
+                batchContext.stockEntry || productStock,
+                batchContext.customerPrice,
+                batchContext.selectedBatch.id,
+                locationQty,
+                autoPriceType,
+                qty,
+                [],
+                null,
+                null,
+                batchContext.selectedBatch
+            );
+        } else if (typeof window.addProductToTable === 'function') {
+            window.addProductToTable(productStock.product, qty);
         }
+
         qtyModal.hide();
         toastr.success(`${product.product_name} ${existingRow ? 'updated' : 'added to cart'}`);
     });
@@ -1103,6 +1176,7 @@ window.displaySearchResultsInGrid = displaySearchResultsInGrid;
 window.scrollProductCardIntoView   = scrollProductCardIntoView;
 window.displayMobileProducts   = displayMobileProducts;
 window.showMobileQuantityModal = showMobileQuantityModal;
+window.handleMobileProductAdd  = handleMobileProductAdd;
 window.fetchFilteredProducts   = fetchFilteredProducts;
 
 // ---- Offcanvas search filter (category, brand, subcategory) ----

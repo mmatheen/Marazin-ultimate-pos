@@ -129,6 +129,14 @@ class User extends Authenticatable
     }
 
     /**
+     * Whether the user may view or edit tax rates / tax UI (strict — no role bypass).
+     */
+    public function canManageTaxSettings(): bool
+    {
+        return \App\Support\TaxSettingsAccess::canManage($this);
+    }
+
+    /**
      * Check if user has permission (includes Master Super Admin logic)
      */
     public function hasPermission($permission, $guardName = null): bool

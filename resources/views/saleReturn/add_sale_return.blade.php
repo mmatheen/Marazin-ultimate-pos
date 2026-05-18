@@ -2,420 +2,276 @@
 @section('content')
 @php
     $canUseFreeQty = (bool)(\App\Models\Setting::value('enable_free_qty') ?? 1) && auth()->user()?->can('use free quantity');
+    $canManageTax = $canManageTax ?? \App\Support\TaxSettingsAccess::canManage();
+    $isEditSaleReturn = isset($salesReturn);
 @endphp
-    <div class="container-fluid my-5">
-        <div class="row">
-            <div class="page-header">
-                <div class="row align-items-center">
-                    <div class="col-sm-12">
-                        <div class="page-sub-header">
-                            <h3 class="page-title" id="form-title">Add Sale Return</h3>
-                            <ul class="breadcrumb">
-                                <li class="breadcrumb-item"><a href="#">Sell</a></li>
-                                <li class="breadcrumb-item active" id="breadcrumb-title">Add Sale Return</li>
-                            </ul>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
+<link rel="stylesheet" href="{{ asset('assets/css/sale-return.css') }}">
 
-        <!-- Billing Option Selection -->
-        <div class="card mb-4 shadow-sm border-0">
-            <div class="card-body text-center">
-                <h4 class="card-title mb-4 fw-bold">Select Billing Option</h4>
-                <div class="d-flex justify-content-center gap-3">
-                    <input type="radio" name="billingOption" id="withBill" value="withBill" class="d-none" checked>
-                    <label for="withBill" class="billing-btn">With Bill</label>
-
-                    <input type="radio" name="billingOption" id="withoutBill" value="withoutBill" class="d-none">
-                    <label for="withoutBill" class="billing-btn">Without Bill</label>
-                </div>
-            </div>
-        </div>
-
-        <style>
-            .billing-btn {
-                padding: 12px 24px;
-                font-size: 16px;
-                font-weight: 600;
-                border-radius: 30px;
-                cursor: pointer;
-                transition: all 0.3s ease-in-out;
-                background: #f8f9fa;
-                border: 2px solid #ddd;
-                color: #333;
-                box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
-                text-align: center;
-                display: inline-block;
-                min-width: 140px;
-            }
-
-            .billing-btn:hover {
-                background: #e9ecef;
-                border-color: #bbb;
-            }
-
-            input[type="radio"]:checked+.billing-btn {
-                background: #007bff;
-                border-color: #007bff;
-                color: white;
-                box-shadow: 0 4px 12px rgba(0, 123, 255, 0.3);
-            }
-        </style>
-
-
-        <!-- Common Details Section -->
-
-        <!-- Sale Return Form -->
-        <div class="card">
-            <div class="card-body">
-                <form id="salesReturnForm">
-                    @csrf
-
-                    <div class="card mb-4">
-                        <div class="card-body">
-                            <h4 class="card-title">Common Details</h4>
-                            <div class="row">
-                                <div class="col-md-4">
-                                    <div class="mb-3">
-                                        <label for="date" class="form-label">Date:</label>
-                                        <input type="date" class="form-control" id="date" name="return_date"
-                                            required>
-                                    </div>
-                                </div>
-                                <div class="col-md-4">
-                                    <div class="mb-3">
-                                        <label for="locationId" class="form-label">Location:</label>
-                                        <select id="locationId" name="location_id" class="form-select" required>
-                                            <option value="">Select Location</option>
-                                            <!-- Populate with locations -->
-                                        </select>
-                                    </div>
-                                </div>
-
-                            </div>
-                            <div class="row">
-                                <div class="col-md-4">
-                                    <div class="mb-3 form-check">
-                                        <input type="checkbox" class="form-check-input" id="isDefective" name="is_defective"
-                                            value="1">
-                                        <label class="form-check-label" for="isDefective">Is Defective</label>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Invoice Details Section -->
-                    <div class="card mb-4" id="invoiceDetailsSection">
-                        <div class="card-body">
-                            <h4 class="card-title">Sales Return</h4>
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <p><strong>Parent Sales</strong></p>
-                                    <div class="mb-3">
-                                        <label for="invoiceNo" class="form-label">Invoice No.:</label>
-                                        <input type="text" class="form-control" id="invoiceNo" name="invoiceNo"
-                                            placeholder="Enter Invoice Number">
-                                        <input type="hidden" class="form-control" id="sale-id" name="sale_id">
-                                        <input type="hidden" class="form-control" id="customer-id" name="customer_id">
-                                    </div>
-                                </div>
-                                <div class="col-md-6 text-md-end">
-                                    <p id="displayInvoiceNo"><strong>Invoice No.:</strong> PR0001</p>
-                                    <p id="displayDate"><strong>Date:</strong> 01/16/2025</p>
-                                    <p id="displayCustomer"><strong>Customer:</strong></p>
-                                    <p id="displayLocation"><strong>Business Location:</strong></p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Customer Selection Section for Without Bill -->
-                    <div class="card mb-4" id="customerSelectionSection" style="display: none;">
-                        <div class="card-body">
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <div class="mb-3">
-                                        <label for="customerId" class="form-label">Customer:</label>
-                                        <div class="d-flex gap-2">
-                                            <select id="customerId" name="customer_id" class="form-select selectBox"
-                                                style="flex: 1;" required>
-                                                <option value="">Select Customer</option>
-                                                <!-- Populate with customers -->
-                                            </select>
-                                            <button type="button" class="btn btn-primary" id="addCustomerButton">
-                                                <i class="fas fa-plus-circle"></i>
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-
-                    <!-- Autocomplete Product Section -->
-                    <div class="row mb-3" id="productSearchSection" style="display: none;">
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="productSearch" class="form-label">Product Search:</label>
-                                <input type="text" class="form-control" id="productSearch"
-                                    placeholder="Search for a product">
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="table-responsive">
-                        <table id="productsTable" class="table table-bordered">
-                            <thead class="table-light">
-                                <tr>
-                                    <th>#</th>
-                                    <th>Product Name</th>
-                                    <th>Retail Price</th>
-                                    <th id="stockColumn">Sales Quantity</th>
-                                    <th>Return Quantity</th>
-                                    @if($canUseFreeQty)<th id="freeStockColumn">Sales Free Qty</th>@endif
-                                    @if($canUseFreeQty)<th>Return Free Qty</th>@endif
-                                    <th>VAT</th>
-                                    <th>Return Subtotal</th>
-                                    <th>Action</th>
-                                </tr>
-                            </thead>
-                            <tbody id="productsTableBody">
-                                <!-- Dynamic Product Rows -->
-                            </tbody>
-                        </table>
-                    </div>
-
-                    <!-- Discount and Return Total -->
-                    <div class="row mt-4">
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="discountType" class="form-label">Discount Type:</label>
-                                <select id="discountType" class="form-select">
-                                    <option value="">Select Discount</option>
-                                    <option value="percentage">Percentage</option>
-                                    <option value="flat">Flat</option>
-                                </select>
-                            </div>
-                            <div class="mb-3">
-                                <label for="discountAmount" class="form-label">Discount Amount:</label>
-                                <input type="number" class="form-control" id="discountAmount"
-                                    placeholder="Enter discount">
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="returnTotal" class="form-label">Return Total:</label>
-                                <input type="number" class="form-control" id="returnTotal" name="return_total"
-                                    placeholder="Enter total return amount" readonly required>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Notes Section -->
-                    <div class="row mb-3">
-                        <div class="col-md-12">
-                            <div class="mb-3">
-                                <label for="notes" class="form-label">Notes:</label>
-                                <textarea class="form-control" id="notes" name="notes" rows="3" placeholder="Enter return reason"
-                                    required></textarea>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Summary Section -->
-                    <div class="row mt-4">
-                        <div class="col-md-6">
-                            <p><strong>Return Subtotal:</strong> <span id="returnSubtotalDisplay">Rs. 0.00</span></p>
-                            <p><strong>Total Return VAT:</strong> <span id="totalReturnVat">Rs. 0.00</span></p>
-                            <p><strong>Total Return Discount:</strong> <span id="totalReturnDiscount">Rs. 0.00</span></p>
-                            <p><strong>Return Total:</strong> <span id="returnTotalDisplay">Rs. 0.00</span></p>
-                        </div>
-                        <div class="col-md-6 text-md-end">
-                            <button type="submit" class="btn btn-primary btn-lg">Save</button>
-                        </div>
-                    </div>
-                </form>
-            </div>
+<div class="container-fluid sr-page">
+    <div class="page-header">
+        <div class="page-sub-header">
+            <h3 class="page-title" id="form-title">Add Sale Return</h3>
+            <ul class="breadcrumb">
+                <li class="breadcrumb-item"><a href="#">Sell</a></li>
+                <li class="breadcrumb-item active" id="breadcrumb-title">Add Sale Return</li>
+            </ul>
         </div>
     </div>
 
-    <!-- Bootstrap Modal -->
-    <div class="modal fade" id="confirmDeleteModal" tabindex="-1" aria-labelledby="confirmDeleteModalLabel"
-        aria-hidden="true">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="confirmDeleteModalLabel">Confirm Deletion</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+    <form id="salesReturnForm">
+        @csrf
+        <div class="sr-card">
+            <div class="sr-toolbar">
+                <div class="sr-billing-toggle" role="group" aria-label="Billing option">
+                    <input type="radio" name="billingOption" id="withBill" value="withBill" checked>
+                    <label for="withBill" class="sr-billing-btn">With Bill</label>
+                    <input type="radio" name="billingOption" id="withoutBill" value="withoutBill">
+                    <label for="withoutBill" class="sr-billing-btn">Without Bill</label>
                 </div>
-                <div class="modal-body">
-                    Are you sure you want to remove this product?
+                <div class="sr-fields">
+                    <div class="sr-field sr-field--date">
+                        <label for="date">Date</label>
+                        <input type="date" class="form-control" id="date" name="return_date" required>
+                    </div>
+                    <div class="sr-field sr-field--check">
+                        <div class="form-check">
+                            <input type="checkbox" class="form-check-input" id="isDefective" name="is_defective" value="1">
+                            <label class="form-check-label" for="isDefective">Defective</label>
+                        </div>
+                    </div>
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="button" class="btn btn-danger" id="confirmDeleteButton">Remove</button>
+            </div>
+
+            {{-- With Bill: invoice sets location automatically --}}
+            <div class="sr-mode-panel" id="invoiceDetailsSection">
+                <div class="sr-mode-title">Original sale</div>
+                <div class="sr-with-bill-grid">
+                    <div class="sr-invoice-search">
+                        <label for="invoiceNo" class="form-label small text-muted mb-1">Invoice number</label>
+                        <input type="text" class="form-control" id="invoiceNo" name="invoiceNo"
+                            placeholder="Search invoice no. and press Enter" autocomplete="off">
+                        <input type="hidden" id="sale-id" name="sale_id">
+                        <input type="hidden" id="customer-id" name="customer_id">
+                        <input type="hidden" id="locationIdBill" name="location_id" value="">
+                    </div>
+                    <div class="sr-sale-meta">
+                        <p id="displayInvoiceNo"><strong>Invoice:</strong> —</p>
+                        <p id="displayDate"><strong>Date:</strong> —</p>
+                        <p id="displayCustomer"><strong>Customer:</strong> —</p>
+                        <p id="displayLocation"><strong>Location:</strong> —</p>
+                    </div>
+                </div>
+            </div>
+
+            {{-- Without Bill: choose return location + customer --}}
+            <div class="sr-mode-panel" id="customerSelectionSection" style="display: none;">
+                <div class="sr-without-bill-grid">
+                    <div class="sr-field">
+                        <label for="locationId">Return to location</label>
+                        <select id="locationId" class="form-select" required>
+                            <option value="">Select location</option>
+                        </select>
+                        <small class="text-muted d-block mt-1">Stock will be added to this location</small>
+                    </div>
+                    <div class="sr-field">
+                        <label for="customerId">Customer</label>
+                        <div class="sr-customer-row">
+                            <select id="customerId" class="form-select selectBox">
+                                <option value="">Select customer</option>
+                            </select>
+                            <button type="button" class="btn btn-primary" id="addCustomerButton" title="Add customer">
+                                <i class="fas fa-plus"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="sr-mode-panel" id="productSearchSection" style="display: none;">
+                <div class="sr-mode-title">Add products</div>
+                <label for="productSearch" class="form-label small text-muted mb-1">Search by name or SKU</label>
+                <input type="text" class="form-control" id="productSearch"
+                    placeholder="Type to search…" autocomplete="off">
+            </div>
+
+            <div class="sr-table-section">
+                <div class="sr-table-wrap">
+                    <table id="productsTable" class="table table-sm mb-0">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Product</th>
+                                <th>Price</th>
+                                <th id="stockColumn">Sold Qty</th>
+                                <th>Return Qty</th>
+                                @if($canUseFreeQty)<th id="freeStockColumn">Sold Free</th>@endif
+                                @if($canUseFreeQty)<th>Return Free</th>@endif
+                                @if($canManageTax)<th>VAT</th>@endif
+                                <th>Subtotal</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody id="productsTableBody"></tbody>
+                    </table>
+                </div>
+                <p class="sr-empty-hint" id="srEmptyHint">
+                    <i class="fas fa-box-open"></i>
+                    <span id="srEmptyHintText">Enter invoice number to load sale lines</span>
+                </p>
+            </div>
+
+            <div class="sr-footer">
+                <div class="sr-totals">
+                    <span>Subtotal: <strong id="returnSubtotalDisplay">Rs. 0.00</strong></span>
+                    @if($canManageTax)<span>VAT: <strong id="totalReturnVat">Rs. 0.00</strong></span>@endif
+                    <span>Discount: <strong id="totalReturnDiscount">Rs. 0.00</strong></span>
+                    <span class="sr-total-final">Total: <strong id="returnTotalDisplay">Rs. 0.00</strong></span>
+                </div>
+                <div class="sr-footer-grid">
+                    <div class="sr-footer-left">
+                        <div>
+                            <label for="discountType" class="form-label">Discount type</label>
+                            <select id="discountType" class="form-select form-select-sm">
+                                <option value="">None</option>
+                                <option value="percentage">%</option>
+                                <option value="flat">Flat</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="discountAmount" class="form-label">Discount</label>
+                            <input type="number" class="form-control form-control-sm" id="discountAmount" placeholder="0" step="any">
+                        </div>
+                        <div>
+                            <label for="returnTotal" class="form-label">Return total</label>
+                            <input type="number" class="form-control form-control-sm fw-bold" id="returnTotal"
+                                name="return_total" readonly required>
+                        </div>
+                        <div class="sr-notes-wrap">
+                            <label for="notes" class="form-label">Reason / notes</label>
+                            <textarea class="form-control" id="notes" name="notes" rows="2"
+                                placeholder="Return reason (required)" required></textarea>
+                        </div>
+                    </div>
+                    <div class="sr-actions">
+                        <button type="submit" class="btn btn-primary" id="srSubmitBtn">
+                            @if($isEditSaleReturn)
+                                <i class="fas fa-save me-1"></i> Update Return
+                            @else
+                                <i class="fas fa-check me-1"></i> Save Return
+                            @endif
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
+    </form>
+</div>
+
+<div class="modal fade" id="confirmDeleteModal" tabindex="-1" aria-labelledby="confirmDeleteModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-sm modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header py-2">
+                <h5 class="modal-title" id="confirmDeleteModalLabel">Remove product?</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body py-2">Remove this line from the return?</div>
+            <div class="modal-footer py-2">
+                <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-sm btn-danger" id="confirmDeleteButton">Remove</button>
+            </div>
+        </div>
     </div>
+</div>
 
-    <style>
-        /* General table styling */
-        #productsTable th,
-        #productsTable td {
-            padding: 10px;
-            text-align: left;
-            vertical-align: middle;
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const today = new Date().toISOString().split('T')[0];
+    const dateEl = document.getElementById('date');
+    if (dateEl && !dateEl.value) dateEl.value = today;
+
+    function syncLocationFieldNames(withBill) {
+        const locSelect = document.getElementById('locationId');
+        const locBill = document.getElementById('locationIdBill');
+        if (!locSelect || !locBill) return;
+        if (withBill) {
+            locBill.setAttribute('name', 'location_id');
+            locSelect.removeAttribute('name');
+        } else {
+            locSelect.setAttribute('name', 'location_id');
+            locBill.removeAttribute('name');
+            locBill.value = '';
+        }
+    }
+
+    function updateEmptyHint() {
+        const withBill = document.getElementById('withBill').checked;
+        const hint = document.getElementById('srEmptyHintText');
+        const rows = document.querySelectorAll('#productsTableBody tr').length;
+        const wrap = document.getElementById('srEmptyHint');
+        if (hint) {
+            hint.textContent = withBill
+                ? 'Enter invoice number to load sale lines'
+                : 'Select location, then search and add products';
+        }
+        if (wrap) wrap.style.display = rows > 0 ? 'none' : 'block';
+    }
+
+    function toggleSearchSections() {
+        const withBill = document.getElementById('withBill').checked;
+        const invoiceDetailsSection = document.getElementById('invoiceDetailsSection');
+        const productSearchSection = document.getElementById('productSearchSection');
+        const productsTableBody = document.getElementById('productsTableBody');
+        const stockColumn = document.getElementById('stockColumn');
+        const freeStockColumn = document.getElementById('freeStockColumn');
+        const customerSelectionSection = document.getElementById('customerSelectionSection');
+
+        syncLocationFieldNames(withBill);
+
+        if (withBill) {
+            invoiceDetailsSection.style.display = 'block';
+            productSearchSection.style.display = 'none';
+            customerSelectionSection.style.display = 'none';
+            if (stockColumn) stockColumn.textContent = 'Sold Qty';
+            if (freeStockColumn) freeStockColumn.textContent = 'Sold Free';
+            document.getElementById('customer-id')?.setAttribute('name', 'customer_id');
+            document.getElementById('customerId')?.removeAttribute('name');
+            document.getElementById('invoiceNo').disabled = false;
+            document.getElementById('sale-id').disabled = false;
+            document.getElementById('productSearch').disabled = true;
+        } else {
+            invoiceDetailsSection.style.display = 'none';
+            productSearchSection.style.display = 'block';
+            customerSelectionSection.style.display = 'block';
+            if (stockColumn) stockColumn.textContent = 'Stock';
+            if (freeStockColumn) freeStockColumn.textContent = 'Free Stock';
+            document.getElementById('customer-id')?.removeAttribute('name');
+            document.getElementById('customerId')?.setAttribute('name', 'customer_id');
+            document.getElementById('invoiceNo').disabled = true;
+            document.getElementById('sale-id').disabled = true;
+            document.getElementById('productSearch').disabled = false;
+            document.getElementById('locationIdBill').value = '';
+            document.getElementById('displayLocation').innerHTML = '<strong>Location:</strong> —';
         }
 
-        #productsTable th {
-            background-color: #f8f9fa;
-            border-bottom: 2px solid #dee2e6;
-            font-weight: bold;
-        }
+        productsTableBody.innerHTML = '';
+        updateEmptyHint();
+    }
 
-        .return-quantity {
-            width: 120px;
-            height: 40px;
-            font-size: 14px;
-            text-align: center;
-            border: 1px solid #ced4da;
-            border-radius: 6px;
-            box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
-            transition: all 0.2s ease;
-        }
+    document.getElementById('withBill').addEventListener('change', toggleSearchSections);
+    document.getElementById('withoutBill').addEventListener('change', toggleSearchSections);
 
-        .return-quantity:focus {
-            outline: none;
-            border-color: #007bff;
-            box-shadow: 0 0 5px rgba(0, 123, 255, 0.5);
-        }
+    const observer = new MutationObserver(updateEmptyHint);
+    const tbody = document.getElementById('productsTableBody');
+    if (tbody) observer.observe(tbody, { childList: true });
 
-        .quantity-error {
-            font-size: 12px;
-            color: red;
-            margin-top: 5px;
-            display: none;
-            text-align: left;
-        }
+    toggleSearchSections();
+});
+</script>
 
-        .free-quantity-error {
-            font-size: 12px;
-            color: red;
-            margin-top: 5px;
-            display: none;
-            text-align: left;
-        }
-
-        .btn-danger {
-            padding: 6px 10px;
-            font-size: 14px;
-            border-radius: 4px;
-            background-color: #dc3545;
-            border: none;
-            color: white;
-            transition: background-color 0.3s ease;
-        }
-
-        .btn-danger:hover {
-            background-color: #c82333;
-        }
-
-        .form-check {
-            padding-top: 10px;
-        }
-
-        .ui-autocomplete {
-            max-height: 200px;
-            overflow-y: auto;
-            overflow-x: hidden;
-        }
-
-        .quantity-error {
-            display: none;
-            color: red;
-        }
-    </style>
-
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            function toggleSearchSections() {
-                const withBill = document.getElementById('withBill').checked;
-                const invoiceDetailsSection = document.getElementById('invoiceDetailsSection');
-                const productSearchSection = document.getElementById('productSearchSection');
-                const productsTableBody = document.getElementById('productsTableBody');
-                const stockColumn = document.getElementById('stockColumn');
-                const freeStockColumn = document.getElementById('freeStockColumn');
-                const customerSelectionSection = document.getElementById('customerSelectionSection');
-
-                if (withBill) {
-                    invoiceDetailsSection.style.display = 'block';
-                    productSearchSection.style.display = 'none';
-                    customerSelectionSection.style.display = 'none';
-                    stockColumn.textContent = 'Sales Quantity';
-                    if (freeStockColumn) freeStockColumn.textContent = 'Sales Free Qty';
-                    setFieldState(true);
-
-                    // Only use hidden input for customer_id
-                    document.getElementById('customer-id').setAttribute('name', 'customer_id');
-                    document.getElementById('customerId').removeAttribute('name');
-                } else {
-                    invoiceDetailsSection.style.display = 'none';
-                    productSearchSection.style.display = 'block';
-                    customerSelectionSection.style.display = 'block';
-                    stockColumn.textContent = 'Current Total Stock';
-                    if (freeStockColumn) freeStockColumn.textContent = 'Current Free Stock';
-                    setFieldState(false);
-
-                    // Only use select input for customer_id
-                    document.getElementById('customer-id').removeAttribute('name');
-                    document.getElementById('customerId').setAttribute('name', 'customer_id');
-                }
-
-                // Clear the product table body
-                productsTableBody.innerHTML = '';
-            }
-
-            // Function to set the disabled state of input fields
-            function setFieldState(enabled) {
-                document.getElementById('invoiceNo').disabled = !enabled;
-                document.getElementById('sale-id').disabled = !enabled;
-                document.getElementById('productSearch').disabled = enabled;
-            }
-
-            // Add event listeners to the radio buttons
-            document.getElementById('withBill').addEventListener('change', toggleSearchSections);
-            document.getElementById('withoutBill').addEventListener('change', toggleSearchSections);
-
-            // Initial toggle based on the default selected option
-            toggleSearchSections();
-        });
-    </script>
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            // Set the default date to today
-            const today = new Date().toISOString().split('T')[0];
-            document.getElementById('date').value = today;
-
-            // Initialize the date picker
-            $('#date').on('focus', function() {
-                $(this).attr('type', 'date');
-            });
-
-            // Show date picker on click anywhere on the input
-            $('#date').on('click', function() {
-                $(this).attr('type', 'date').focus();
-            });
-        });
-    </script>
-
-    @include('contact.customer.add_customer_modal')
-    @include('contact.customer.city_modal')
-    @include('contact.customer.customer_ajax_bootstrap')
-    @include('contact.customer.cities_ajax')
-    @include('saleReturn.sale_return_ajax')
+@include('contact.customer.add_customer_modal')
+@include('contact.customer.city_modal')
+@include('contact.customer.customer_ajax_bootstrap')
+@include('contact.customer.cities_ajax')
+@include('saleReturn.sale_return_ajax')
 @endsection
+

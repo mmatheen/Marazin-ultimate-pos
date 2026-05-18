@@ -340,10 +340,15 @@ class SaleController extends Controller
         }
     }
 
-    public function getSaleByInvoiceNo($invoiceNo)
+    public function getSaleByInvoiceNo(Request $request, $invoiceNo)
     {
         try {
-            $data = $this->saleQueryService->getByInvoiceNo($invoiceNo);
+            $editReturnId = $request->query('edit_return_id');
+            $forEditId = $editReturnId !== null && $editReturnId !== ''
+                ? (int) $editReturnId
+                : null;
+
+            $data = $this->saleQueryService->getByInvoiceNo($invoiceNo, $forEditId > 0 ? $forEditId : null);
             return response()->json($data, 200);
         } catch (ModelNotFoundException $e) {
             return response()->json(['error' => 'Sale not found'], 404);
@@ -646,6 +651,8 @@ class SaleController extends Controller
             'freeQtyEnabled'         => $freeQtyEnabled,
             'canUseFreeQty'          => (bool) ($freeQtyEnabled && $user?->can('use free quantity')),
             'canUseQuickPriceEntry'  => (bool) ($user?->can('quick price entry')),
+            'canManageTax'           => \App\Support\TaxSettingsAccess::canManage($user),
+            'canViewProductCost'     => $user ? $this->userAccessService->isSuperAdmin($user) : false,
             'miscItemProductId'      => $miscItemProductId,
         ];
     }
