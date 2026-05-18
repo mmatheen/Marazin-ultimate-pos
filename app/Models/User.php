@@ -91,7 +91,18 @@ class User extends Authenticatable
      */
     public function isSalesRep(): bool
     {
-        return $this->roles()->where('key', 'sales_rep')->exists();
+        if (!$this->relationLoaded('roles')) {
+            $this->load('roles');
+        }
+
+        return $this->roles->contains(function ($role) {
+            $key = strtolower((string) ($role->key ?? ''));
+            $name = strtolower(trim((string) ($role->name ?? '')));
+
+            return $key === 'sales_rep'
+                || $name === 'sales rep'
+                || $name === 'salesrep';
+        });
     }
 
     public function isAdmin(): bool

@@ -32,6 +32,20 @@ return [
     'add expense from pos' => ['access pos', 'create expense'],
     'view cash register' => ['access pos'],
 
+    // POS / sales: grant read & register deps when role can sell (fixes "credit sale" without view customer/product)
+    'view customer' => ['access pos', 'create sale', 'credit sale', 'create sale-order'],
+    'view product' => ['access pos', 'create sale', 'credit sale', 'create sale-order'],
+    'view product details' => ['access pos', 'create sale'],
+    'view location' => ['access pos', 'create sale', 'create sale-order'],
+    'view main-category' => ['access pos', 'create sale'],
+    'view sub-category' => ['access pos', 'create sale'],
+    'view brand' => ['access pos', 'create sale'],
+    'view own sales' => ['access pos', 'create sale', 'credit sale', 'create sale-order'],
+    'select retail price' => ['access pos', 'create sale', 'credit sale'],
+    'cash payment' => ['access pos', 'create sale', 'credit sale'],
+    'card payment' => ['access pos', 'create sale', 'credit sale'],
+    'save draft' => ['create sale-order', 'access pos'],
+
     // Backorder module toggle — anyone who could edit general business settings gets the new granular permission
     'edit backorder-settings' => ['edit business-settings'],
 ];

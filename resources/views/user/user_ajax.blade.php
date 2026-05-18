@@ -639,7 +639,7 @@
             const parentsOnly = isSalesRepRoleSelected();
             let previousSelected = selectedIds || dropdown.val() || [];
 
-            if (parentsOnly && previousSelected.length) {
+            if (parentsOnly && previousSelected.length && cachedAccessibleLocations.length) {
                 const mappedParentIds = [];
                 (Array.isArray(previousSelected) ? previousSelected : [previousSelected]).forEach(function(id) {
                     const loc = cachedAccessibleLocations.find(function(item) {
@@ -663,10 +663,6 @@
             }
 
             cachedAccessibleLocations.forEach(function(loc) {
-                if (parentsOnly && loc.parent_id) {
-                    return;
-                }
-
                 dropdown.append(`<option value="${loc.id}">${buildLocationLabel(loc)}</option>`);
             });
 
@@ -691,8 +687,12 @@
                 return;
             }
 
+            const locationUrl = isSalesRepRoleSelected()
+                ? '/location-get-all?parents_only=1'
+                : '/location-get-all';
+
             $.ajax({
-                url: '/location-get-all',
+                url: locationUrl,
                 type: 'GET',
                 dataType: 'json',
                 success: function(res) {
@@ -717,11 +717,8 @@
         }
 
         $('#edit_role_name').on('change', function() {
-            if (!cachedAccessibleLocations.length) {
-                populateLocationDropdown();
-                return;
-            }
-            renderLocationDropdown();
+            cachedAccessibleLocations = [];
+            populateLocationDropdown();
         });
 
         populateLocationDropdown();

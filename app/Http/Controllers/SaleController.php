@@ -207,6 +207,14 @@ class SaleController extends Controller
             return response()->json(['status' => 400, 'errors' => $validationErrors]);
         }
 
+        $permissionError = $this->saleValidationService->validateSalePermissions($request, auth()->user());
+        if ($permissionError) {
+            return response()->json([
+                'status' => 403,
+                'message' => $permissionError,
+            ], 403);
+        }
+
         $walkInError = $this->saleValidationService->checkWalkInRules($request);
         if ($walkInError) {
             return response()->json(array_merge(['status' => 400], $walkInError));

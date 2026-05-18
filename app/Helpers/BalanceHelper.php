@@ -193,7 +193,39 @@ class BalanceHelper
             ->where('status', 'active')
             ->sum('debit');
 
-        return max(0.0, $currentOpeningBalance - $totalPayments);
+        return max(0.0, round($currentOpeningBalance - $totalPayments, 2));
+    }
+
+    /**
+     * Remaining supplier opening balance still payable (ledger: opening_balance − opening_balance_payment).
+     */
+    public static function getSupplierOpeningBalanceRemaining(int $supplierId): float
+    {
+        if ($supplierId <= 0) {
+            return 0.0;
+        }
+
+        $latestOpeningBalance = Ledger::query()
+            ->where('contact_id', $supplierId)
+            ->where('contact_type', 'supplier')
+            ->where('transaction_type', 'opening_balance')
+            ->where('status', 'active')
+            ->orderByDesc('id')
+            ->first();
+
+        $currentOpeningBalance = 0.0;
+        if ($latestOpeningBalance) {
+            $currentOpeningBalance = (float) $latestOpeningBalance->credit - (float) $latestOpeningBalance->debit;
+        }
+
+        $totalPayments = (float) Ledger::query()
+            ->where('contact_id', $supplierId)
+            ->where('contact_type', 'supplier')
+            ->where('transaction_type', 'opening_balance_payment')
+            ->where('status', 'active')
+            ->sum('credit');
+
+        return max(0.0, round($currentOpeningBalance - $totalPayments, 2));
     }
 
     /**

@@ -31,10 +31,13 @@ class LocationController extends Controller
     /**
      * Display a listing of locations based on user role and permissions.
      */
-    public function index()
+    public function index(Request $request)
     {
         /** @var User $user */
         $user = Auth::user();
+
+        // User management form only: parent shops (vehicles assigned in Sales Rep module)
+        $parentsOnly = $request->boolean('parents_only');
 
         // Master Super Admin can see all locations
         if ($this->isMasterSuperAdmin($user)) {
@@ -44,13 +47,17 @@ class LocationController extends Controller
         elseif ($this->hasLocationBypassPermission($user)) {
             $locations = Location::with('parent', 'children')->orderBy('id', 'asc')->get();
         }
-        // Sales Rep gets their accessible locations
-        elseif ($this->isSalesRep($user)) {
+        // Sales Rep login / POS: vehicles from sales_reps assignments (+ parent shops)
+        elseif ($user->isSalesRep() && !$parentsOnly) {
             $locations = $this->getSalesRepAccessibleLocations($user);
         }
         // Regular users (including regular admin) see only their assigned locations
         else {
             $locations = $user->locations()->with('parent', 'children')->orderBy('id', 'asc')->get();
+        }
+
+        if ($parentsOnly) {
+            $locations = $locations->filter(fn ($location) => $location->parent_id === null)->values();
         }
 
         if ($locations->isNotEmpty()) {
@@ -66,14 +73,6 @@ class LocationController extends Controller
             'message' => 'No locations found.',
             'data' => [],
         ], 404);
-    }
-
-    /**
-     * Check if user has sales rep role
-     */
-    private function isSalesRep($user)
-    {
-        return $user->roles()->where('key', 'sales_rep')->exists();
     }
 
     /**

@@ -2,6 +2,7 @@
 
 namespace App\Traits;
 
+use App\Helpers\BalanceHelper;
 use App\Models\Customer;
 use App\Models\Payment;
 use App\Models\Purchase;
@@ -82,24 +83,25 @@ trait BulkPaymentHelpers
             : Supplier::findOrFail($contactId);
 
         if ($totalOBPayment > 0) {
-            if ($paymentType === 'opening_balance') {
-                $refDue = $contactType === 'customer'
-                    ? Sale::withoutGlobalScope(\App\Scopes\LocationScope::class)
-                          ->where('customer_id', $contactId)->where('total_due', '>', 0)->sum('total_due')
-                    : Purchase::where('supplier_id', $contactId)->where('total_due', '>', 0)->sum('total_due');
+            $totalOBPayment = round($totalOBPayment, 2);
 
-                $maxOB = max(0.0, (float) $entity->current_balance - $refDue);
-                if ($totalOBPayment > $maxOB) {
+            if ($paymentType === 'opening_balance') {
+                $maxOB = $contactType === 'customer'
+                    ? BalanceHelper::getCustomerOpeningBalanceRemaining($contactId)
+                    : BalanceHelper::getSupplierOpeningBalanceRemaining($contactId);
+
+                if ($this->moneyAmountExceeds($totalOBPayment, $maxOB)) {
                     throw new \Exception(
                         'Opening balance payment amount Rs.' . number_format($totalOBPayment, 2) .
                         ' exceeds available opening balance Rs.' . number_format($maxOB, 2)
                     );
                 }
             } else {
-                if ($totalOBPayment > $entity->current_balance) {
+                $maxBalance = round((float) $entity->current_balance, 2);
+                if ($this->moneyAmountExceeds($totalOBPayment, $maxBalance)) {
                     throw new \Exception(
                         'Opening balance payment amount Rs.' . number_format($totalOBPayment, 2) .
-                        " exceeds {$contactType}'s current balance Rs." . number_format($entity->current_balance, 2)
+                        " exceeds {$contactType}'s current balance Rs." . number_format($maxBalance, 2)
                     );
                 }
             }
@@ -111,7 +113,10 @@ trait BulkPaymentHelpers
                       ->where('customer_id', $contactId)->where('total_due', '>', 0)->sum('total_due')
                 : Purchase::where('supplier_id', $contactId)->where('total_due', '>', 0)->sum('total_due');
 
-            if ($totalRefPayment > $totalRefDue) {
+            $totalRefPayment = round($totalRefPayment, 2);
+            $totalRefDue = round((float) $totalRefDue, 2);
+
+            if ($this->moneyAmountExceeds($totalRefPayment, $totalRefDue)) {
                 $refType = $contactType === 'customer' ? 'Sale' : 'Purchase';
                 throw new \Exception(
                     "{$refType} payment amount Rs." . number_format($totalRefPayment, 2) .
@@ -119,5 +124,13 @@ trait BulkPaymentHelpers
                 );
             }
         }
+    }
+
+    /**
+     * Compare monetary amounts in rupees (2 dp) with a tiny tolerance for float noise.
+     */
+    private function moneyAmountExceeds(float $payment, float $maximum): bool
+    {
+        return round($payment, 2) > round($maximum, 2) + 0.001;
     }
 }

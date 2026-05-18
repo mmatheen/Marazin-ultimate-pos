@@ -31,7 +31,7 @@ class CustomerController extends Controller
     {
         $this->customerListingService = $customerListingService;
         $this->customerCrudService = $customerCrudService;
-        $this->middleware('permission:view customer', ['only' => ['index', 'show', 'Customer']]);
+        $this->middleware('permission:view customer', ['only' => ['index', 'show', 'Customer', 'getCreditInfo']]);
         $this->middleware('permission:create customer', ['only' => ['store']]);
         $this->middleware('permission:edit customer', ['only' => ['edit', 'update']]);
         $this->middleware('permission:delete customer', ['only' => ['destroy']]);

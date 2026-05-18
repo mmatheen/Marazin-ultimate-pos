@@ -5,6 +5,7 @@ namespace App\Services\Sale;
 use App\Models\Product;
 use App\Models\Sale;
 use App\Models\Setting;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -171,6 +172,54 @@ class SaleValidationService
                     ];
                 }
             }
+        }
+
+        return null;
+    }
+
+    /**
+     * Ensure the user has permissions required for this sale request (clearer than generic Spatie 403).
+     */
+    public function validateSalePermissions(Request $request, ?User $user): ?string
+    {
+        if (!$user) {
+            return 'Authentication required.';
+        }
+
+        $transactionType = $request->input('transaction_type', 'invoice');
+
+        if ($transactionType === 'sale_order' && !$user->can('create sale-order')) {
+            return 'You do not have permission to create sale orders.';
+        }
+
+        $payments = $request->input('payments', []);
+        if (!is_array($payments)) {
+            $payments = [];
+        }
+
+        $hasCreditPayment = collect($payments)->contains(
+            fn ($payment) => is_array($payment) && ($payment['payment_method'] ?? '') === 'credit'
+        );
+
+        if ($hasCreditPayment && !$user->can('credit sale')) {
+            return 'You do not have permission to make credit sales.';
+        }
+
+        $finalTotal = (float) ($request->input('final_total') ?? $request->input('total_amount') ?? 0);
+        $paidTotal = collect($payments)->sum(fn ($payment) => is_array($payment) ? (float) ($payment['amount'] ?? 0) : 0);
+        $posAdvance = $request->boolean('pos_apply_advance_selected')
+            ? (float) $request->input('pos_apply_advance_amount', 0)
+            : 0.0;
+        $paidTotal += max(0, $posAdvance);
+
+        $isCreditBalanceSale = $request->input('customer_id') != 1
+            && $request->input('status') === 'final'
+            && $transactionType !== 'sale_order'
+            && ($finalTotal - $paidTotal) > 0.02
+            && !$hasCreditPayment;
+
+        if ($isCreditBalanceSale && !$user->can('credit sale')) {
+            return 'You do not have permission to make credit sales (unpaid balance).';
         }
 
         return null;
