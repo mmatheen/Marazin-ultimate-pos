@@ -352,7 +352,7 @@
                                 </div>
                                 <div class="table-responsive table-container">
                                     <table class="datatable no-footer table table-hover table-striped"
-                                        id="purchase_product" role="grid" style="width:100%">
+                                        id="purchase_product" data-dt-disable="true" role="grid" style="width:100%">
                                         <thead>
                                             <tr class="table-primary">
                                                 <th>#</th>

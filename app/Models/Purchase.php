@@ -53,7 +53,7 @@ class Purchase extends Model
 
     public function purchaseProducts()
     {
-        return $this->hasMany(PurchaseProduct::class);
+        return $this->hasMany(PurchaseProduct::class)->orderBy('id', 'asc');
     }
 
     public function payments()

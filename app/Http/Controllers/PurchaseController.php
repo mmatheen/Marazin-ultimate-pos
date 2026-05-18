@@ -1125,7 +1125,7 @@ class PurchaseController extends Controller
             'supplier',
             'location',
             'purchaseProducts' => function ($q) {
-                $q->orderBy('created_at', 'desc')->with(['product', 'batch']);
+                $q->orderBy('id', 'asc')->with(['product', 'batch']);
             },
             'payments',
         ])->find($id);
@@ -1303,8 +1303,12 @@ class PurchaseController extends Controller
         $purchase = Purchase::with([
             'supplier',
             'location',
-            'purchaseProducts.batch', // Corrected relationship
-            'purchaseProducts.product', // Load the product relationship
+            'purchaseProducts' => function ($q) {
+                // Same as DB / supplier list order (oldest line first)
+                $q->orderBy('id', 'asc');
+            },
+            'purchaseProducts.batch',
+            'purchaseProducts.product',
             'payments'
         ])->find($id);
 

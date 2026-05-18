@@ -213,6 +213,109 @@
         // DataTable global variable
         let purchaseProductTable = null;
 
+        /** Product ids in the order the user added them (supplier list order). */
+        let purchaseAddOrder = [];
+
+        function trackPurchaseLineAdd(productId) {
+            const id = String(productId);
+            if (!purchaseAddOrder.includes(id)) {
+                purchaseAddOrder.push(id);
+            }
+        }
+
+        function trackPurchaseLineRemove(productId) {
+            const id = String(productId);
+            purchaseAddOrder = purchaseAddOrder.filter((x) => x !== id);
+        }
+
+        function resetPurchaseAddOrder() {
+            purchaseAddOrder = [];
+        }
+
+        /** Remove stray DataTables placeholder rows (causes "No data" + wrong # counter). */
+        function cleanupPurchaseTablePlaceholders() {
+            $('#purchase_product tbody tr.dataTables_empty, #purchase_product tbody td.dataTables_empty').closest('tr').remove();
+        }
+
+        /**
+         * Add one line at the top only — DOM only (Add Purchase LIFO).
+         */
+        function prependPurchaseLineRow($row) {
+            if (isPurchaseEditPage()) {
+                window.purchaseEditUsesLifo = true;
+            }
+            $('#purchase_product tbody').prepend($row);
+            cleanupPurchaseTablePlaceholders();
+            updatePurchaseRowCounters();
+        }
+
+        /** Append line at bottom — Edit Purchase load (supplier list #1,2,3… top to bottom). */
+        function appendPurchaseLineRow($row) {
+            $('#purchase_product tbody').append($row);
+            cleanupPurchaseTablePlaceholders();
+            updatePurchaseRowCountersSupplierList();
+        }
+
+        /** # column on edit: 1 = first in supplier list (top), 2, 3, 4… */
+        function updatePurchaseRowCountersSupplierList() {
+            getPurchaseProductTableRows().forEach((row, index) => {
+                $(row).find('td.line-counter').text(index + 1);
+            });
+        }
+
+        function removePurchaseLineRow($row) {
+            const productId = $row.data('id');
+            $row.remove();
+            cleanupPurchaseTablePlaceholders();
+            trackPurchaseLineRemove(productId);
+            updatePurchaseRowCounters();
+        }
+
+        function clearPurchaseProductTable() {
+            $('#purchase_product tbody').empty();
+            cleanupPurchaseTablePlaceholders();
+            resetPurchaseAddOrder();
+        }
+
+        /** Product lines only (skip DataTables empty placeholder rows). */
+        function getPurchaseProductTableRows() {
+            return Array.from(document.querySelectorAll('#purchase_product tbody tr[data-id]'));
+        }
+
+        /** Oldest added first — for DB save so id DESC matches on-screen LIFO. */
+        function getPurchaseProductTableRowsForSave() {
+            const $tbody = $('#purchase_product tbody');
+            return purchaseAddOrder
+                .map((pid) => $tbody.find(`tr[data-id="${pid}"]`).first()[0])
+                .filter(Boolean);
+        }
+
+        function isPurchaseEditPage() {
+            return /\/purchase\/edit\/\d+/.test(window.location.pathname);
+        }
+
+        /** Add Purchase: LIFO # (newest top = highest). Edit load: supplier #1,2,3 top to bottom. */
+        function updatePurchaseRowCounters() {
+            if (isPurchaseEditPage() && !window.purchaseEditUsesLifo) {
+                updatePurchaseRowCountersSupplierList();
+                return;
+            }
+            const rows = getPurchaseProductTableRows();
+            const total = rows.length;
+            rows.forEach((row, index) => {
+                $(row).find('td.line-counter').text(total - index);
+            });
+        }
+
+        window.trackPurchaseLineAdd = trackPurchaseLineAdd;
+        window.trackPurchaseLineRemove = trackPurchaseLineRemove;
+        window.resetPurchaseAddOrder = resetPurchaseAddOrder;
+        window.prependPurchaseLineRow = prependPurchaseLineRow;
+        window.appendPurchaseLineRow = appendPurchaseLineRow;
+        window.removePurchaseLineRow = removePurchaseLineRow;
+        window.clearPurchaseProductTable = clearPurchaseProductTable;
+        window.updatePurchaseRowCounters = updatePurchaseRowCounters;
+
         // IMEI handling variables
         let purchaseImeiData = {};
         let pendingImeiProducts = [];
@@ -385,6 +488,7 @@
             // Clear all tracking arrays
             pendingImeiProducts.length = 0;
             allProducts.length = 0;
+            resetPurchaseAddOrder();
 
             // Reset pagination
             currentPage = 1;
@@ -613,37 +717,14 @@
         // Location change handler (moved to consolidated document.ready below)
 
         function addProductToTable(product, isEditing = false, prices = {}) {
-            // Safely get DataTable instance - check if initialized first
-            let table;
-            if ($.fn.DataTable.isDataTable('#purchase_product')) {
-                table = $('#purchase_product').DataTable();
-            } else {
-                console.warn('⚠️ DataTable not initialized yet - using purchaseProductTable global or raw table');
-                table = purchaseProductTable || $('#purchase_product');
-            }
             let existingRow = null;
 
-            // ENHANCED DUPLICATE CHECKING: Use DataTable API for more reliable checking
-            // CRITICAL: Use purchaseProductTable (global) for consistency across all functions
-            if ($.fn.DataTable.isDataTable('#purchase_product') && purchaseProductTable) {
-                purchaseProductTable.rows().every(function() {
-                    const rowData = this.node();
-                    const rowProductId = $(rowData).data('id');
-                    if (rowProductId && rowProductId == product.id) {
-                        existingRow = $(rowData);
-                        return false;
-                    }
-                });
-            } else {
-                // Fallback: check visible rows
-                $('#purchase_product tbody tr').each(function() {
-                    const rowProductId = $(this).data('id');
-                    if (rowProductId && rowProductId == product.id) {
-                        existingRow = $(this);
-                        return false;
-                    }
-                });
-            }
+            getPurchaseProductTableRows().forEach(function(rowData) {
+                const rowProductId = $(rowData).data('id');
+                if (rowProductId && rowProductId == product.id) {
+                    existingRow = $(rowData);
+                }
+            });
 
             // Determine if decimal is allowed for this product
             const allowDecimal = product.allow_decimal === true || product.allow_decimal === "true";
@@ -674,8 +755,7 @@
                 }
             }
 
-            // If existingRow was null, stale/deleted, or isEditing is true, add as new product
-            if (!existingRow || isEditing) {
+            if (!existingRow) {
                 console.log(`➕ Adding new product ${product.id} (${product.name}) to table. IsEditing: ${isEditing}`);
                 // Get latest batch prices using helper function
                 const latestPrices = getLatestBatchPrices(product);
@@ -724,7 +804,7 @@
 
                 const newRow = `
             <tr data-id="${product.id}" data-mrp="${maxRetailPrice}" data-tax-percent="${taxPercent}" data-imei-enabled="${product.is_imei_or_serial_no || false}">
-            <td>${product.id}</td>
+            <td class="line-counter"></td>
             <td>
                 ${product.name}
                 <br><small>Stock: ${product.quantity}</small>
@@ -767,31 +847,37 @@
             </tr>
         `;
 
+                if (!isEditing) {
+                    trackPurchaseLineAdd(product.id);
+                }
+
                 const $newRow = $(newRow);
-                // CRITICAL FIX: Use purchaseProductTable (global) for consistency with delete/footer operations
-                let tableRef = purchaseProductTable || table;
-                const addedRow = tableRef.row.add($newRow).draw();
-                // Last added = first row (like POS): move new row to top
-                $(addedRow.node()).prependTo('#purchase_product tbody');
-                updateRow($newRow);
-                calculateProfitMargin($newRow); // Initial profit margin calculation
+                if (isEditing) {
+                    appendPurchaseLineRow($newRow);
+                } else {
+                    prependPurchaseLineRow($newRow);
+                }
+
+                const $rowNode = $('#purchase_product tbody tr[data-id="' + product.id + '"]').last();
+                updateRow($rowNode);
+                calculateProfitMargin($rowNode);
                 updateFooter();
 
                 // Handle quantity, discount, and price changes
-                $newRow.find(
+                $rowNode.find(
                     ".purchase-quantity, .free-quantity, .claim-free-quantity, .discount-percent, .product-price, .unit-cost"
                 ).on("input", function() {
-                    updateRow($newRow);
+                    updateRow($rowNode);
                     updateFooter();
                 });
 
-                $newRow.find('.product-tax-rate').on('change', function() {
-                    updateRow($newRow);
+                $rowNode.find('.product-tax-rate').on('change', function() {
+                    updateRow($rowNode);
                     updateFooter();
                 });
 
                 // ✅ ADD: Custom validation for quantity based on unit type
-                $newRow.find(".purchase-quantity, .free-quantity, .claim-free-quantity").on("blur", function() {
+                $rowNode.find(".purchase-quantity, .free-quantity, .claim-free-quantity").on("blur", function() {
                     const allowDecimal = $(this).data('allow-decimal');
                     const value = parseFloat($(this).val());
 
@@ -815,36 +901,32 @@
                 });
 
                 // Handle retail price changes separately to update profit margin
-                $newRow.find(".retail-price").on("input", function() {
-                    validateRetailPriceAgainstMRP($newRow);
-                    calculateProfitMargin($newRow);
+                $rowNode.find(".retail-price").on("input", function() {
+                    validateRetailPriceAgainstMRP($rowNode);
+                    calculateProfitMargin($rowNode);
                     updateFooter();
                 });
 
                 // ✅ ADD: Handle MRP changes to update retail price validation
-                $newRow.find(".max-retail-price").on("input", function() {
-                    validateRetailPriceAgainstMRP($newRow);
-                    calculateProfitMargin($newRow);
+                $rowNode.find(".max-retail-price").on("input", function() {
+                    validateRetailPriceAgainstMRP($rowNode);
+                    calculateProfitMargin($rowNode);
                     updateFooter();
                 });
 
                 // Handle row removal for newly added products (NOT product deletion)
                 // Uses .remove-purchase-row class to avoid conflict with product_ajax.blade.php
-                $newRow.find(".remove-purchase-row").on("click", function(e) {
+                $rowNode.find(".remove-purchase-row").on("click", function(e) {
                     e.preventDefault();
                     e.stopImmediatePropagation(); // Prevent delegated handler from also executing
 
-                    const productName = $newRow.find('td:nth-child(2)').text().trim();
-                    const quantity = $newRow.find('.purchase-quantity').val() || '0';
-                    const productId = $newRow.data('id');
+                    const productName = $rowNode.find('td:nth-child(2)').text().trim();
+                    const quantity = $rowNode.find('.purchase-quantity').val() || '0';
+                    const productId = $rowNode.data('id');
 
                     // CRITICAL FIX: Use global purchaseProductTable instead of local table variable
                     // to ensure consistency with updateFooter() function
-                    if (purchaseProductTable) {
-                        purchaseProductTable.row($newRow).remove().draw();
-                    } else {
-                        $newRow.remove();
-                    }
+                    removePurchaseLineRow($rowNode);
 
                     // CRITICAL FIX: Clean up ALL tracking arrays to prevent re-adding
                     const originalPendingLength = pendingImeiProducts.length;
@@ -1008,44 +1090,22 @@
             let totalTaxAmount = 0;
             let netTotalAmount = 0;
 
-            // CRITICAL FIX: Use DataTables API to get ALL rows (including paginated ones)
-            // $('#purchase_product tbody tr').each() only gets visible rows!
-            if ($.fn.DataTable.isDataTable('#purchase_product')) {
-                // Get ALL rows data from DataTable (not just visible page)
-                purchaseProductTable.rows().every(function() {
-                    const row = this.node();
-                    const quantity = parseFloat($(row).find('.purchase-quantity').val()) || 0;
-                    const freeQuantity = parseFloat($(row).find('.free-quantity').val()) || 0;
-                    const unitCost = parseFloat($(row).find('.unit-cost').val()) || 0;
-                    const taxAmount = parseFloat($(row).find('.tax-amount').val()) || 0;
-                    const lineTotal = parseFloat($(row).find('.line-total').text()) || 0;
+            getPurchaseProductTableRows().forEach(function(row) {
+                const $row = $(row);
+                const quantity = parseFloat($row.find('.purchase-quantity').val()) || 0;
+                const freeQuantity = parseFloat($row.find('.free-quantity').val()) || 0;
+                const unitCost = parseFloat($row.find('.unit-cost').val()) || 0;
+                const taxAmount = parseFloat($row.find('.tax-amount').val()) || 0;
+                const lineTotal = parseFloat($row.find('.line-total').text()) || 0;
 
-                    const lineSubTotal = unitCost * quantity;
+                const lineSubTotal = unitCost * quantity;
 
-                    totalItems += quantity;
-                    totalFreeItems += freeQuantity;
-                    subtotalAmount += lineSubTotal;
-                    totalTaxAmount += taxAmount;
-                    netTotalAmount += lineTotal;
-                });
-            } else {
-                // Fallback for when DataTable is not initialized yet
-                $('#purchase_product tbody tr').each(function() {
-                    const quantity = parseFloat($(this).find('.purchase-quantity').val()) || 0;
-                    const freeQuantity = parseFloat($(this).find('.free-quantity').val()) || 0;
-                    const unitCost = parseFloat($(this).find('.unit-cost').val()) || 0;
-                    const taxAmount = parseFloat($(this).find('.tax-amount').val()) || 0;
-                    const lineTotal = parseFloat($(this).find('.line-total').text()) || 0;
-
-                    const lineSubTotal = unitCost * quantity;
-
-                    totalItems += quantity;
-                    totalFreeItems += freeQuantity;
-                    subtotalAmount += lineSubTotal;
-                    totalTaxAmount += taxAmount;
-                    netTotalAmount += lineTotal;
-                });
-            }
+                totalItems += quantity;
+                totalFreeItems += freeQuantity;
+                subtotalAmount += lineSubTotal;
+                totalTaxAmount += taxAmount;
+                netTotalAmount += lineTotal;
+            });
 
             // Display paid items + free items breakdown
             const totalItemsDisplay = totalFreeItems > 0
@@ -1305,23 +1365,18 @@
                 }
             }
 
-            // Use global variable or get existing instance (don't reinitialize!)
-            let productTable;
-            if (purchaseProductTable) {
-                productTable = purchaseProductTable;
-            } else if ($.fn.DataTable.isDataTable('#purchase_product')) {
-                productTable = $('#purchase_product').DataTable();
-                purchaseProductTable = productTable; // Save to global
-            }
-
-            if (productTable) {
-                // CRITICAL FIX: Clean up tracking arrays before loading existing purchase
-                cleanupProductTrackingArrays();
-                productTable.clear().draw();
-            }
+            cleanupProductTrackingArrays();
+            clearPurchaseProductTable();
 
             if (purchase.purchase_products && Array.isArray(purchase.purchase_products)) {
-                purchase.purchase_products.forEach(product => {
+                window.purchaseIsLoadingEdit = true;
+                window.purchaseEditUsesLifo = false;
+
+                const lines = [...purchase.purchase_products].sort((a, b) => a.id - b.id);
+
+                lines.forEach((line) => trackPurchaseLineAdd(line.product_id));
+
+                lines.forEach((product) => {
                     const productData = {
                         id: product.product_id,
                         name: product.product.product_name,
@@ -1354,6 +1409,9 @@
 
                     addProductToTable(productData, true, batchPrices);
                 });
+
+                window.purchaseIsLoadingEdit = false;
+                updatePurchaseRowCountersSupplierList();
             }
 
             updateFooter();
@@ -1383,19 +1441,8 @@
                 return;
             }
 
-            // CRITICAL FIX: Get ALL rows from DataTable (including paginated ones)
-            let productTableRows = [];
-            if ($.fn.DataTable.isDataTable('#purchase_product')) {
-                // Use DataTables API to get ALL rows across all pages
-                purchaseProductTable.rows().every(function() {
-                    productTableRows.push(this.node());
-                });
-                console.log('Product table rows count (ALL pages):', productTableRows.length);
-            } else {
-                // Fallback: get visible rows
-                productTableRows = document.querySelectorAll('#purchase_product tbody tr');
-                console.log('Product table rows count (visible only):', productTableRows.length);
-            }
+            const productTableRows = getPurchaseProductTableRows();
+            console.log('Product table rows count:', productTableRows.length);
 
             if (productTableRows.length === 0) {
                 toastr.error('Please add at least one product.', 'Warning');
@@ -1413,20 +1460,10 @@
             pendingImeiProducts.length = 0; // More thorough cleanup
             console.log('=== IMEI Collection Debug ===');
 
-            // CRITICAL FIX: Get ALL rows from DataTable (including paginated ones)
-            let allRows = [];
-            if ($.fn.DataTable.isDataTable('#purchase_product')) {
-                // Use DataTables API to get ALL rows across all pages
-                purchaseProductTable.rows().every(function() {
-                    allRows.push(this.node());
-                });
-                console.log('Using DataTables API - Collecting IMEI products from', allRows.length,
-                    'rows (ALL pages)');
-            } else {
-                // Fallback: use provided rows
-                allRows = Array.from(productTableRows);
-                console.log('Using provided rows - Collecting IMEI products from', allRows.length, 'rows');
-            }
+            const allRows = productTableRows.length
+                ? Array.from(productTableRows)
+                : getPurchaseProductTableRows();
+            console.log('Collecting IMEI products from', allRows.length, 'rows');
 
             allRows.forEach((row, index) => {
                 const productId = $(row).data('id');
@@ -1843,18 +1880,8 @@
             formData.append('tax_type', $('#tax-type').val() || '');
             formData.append('tax_amount', parseFloat($('#tax-display').text().replace(/[^0-9.-]/g, '')) || 0);
 
-            // CRITICAL FIX: Get ALL rows from DataTable (including paginated ones)
-            // document.querySelectorAll() only gets visible DOM rows!
-            let allRows = [];
-            if ($.fn.DataTable.isDataTable('#purchase_product')) {
-                // Use DataTables API to get ALL rows across all pages
-                purchaseProductTable.rows().every(function() {
-                    allRows.push(this.node());
-                });
-            } else {
-                // Fallback: get visible rows
-                allRows = document.querySelectorAll('#purchase_product tbody tr');
-            }
+            // Save in oldest-first order so DB id DESC matches LIFO screen order on view/print
+            const allRows = getPurchaseProductTableRowsForSave();
 
             allRows.forEach((row, index) => {
                 const productId = $(row).data('id');
@@ -2488,18 +2515,11 @@
             // CRITICAL FIX: Clean up all product tracking arrays
             cleanupProductTrackingArrays();
 
-            // Use global variable or get existing instance (don't reinitialize!)
-            if (purchaseProductTable) {
-                purchaseProductTable.clear().draw();
-            } else if ($.fn.DataTable.isDataTable('#purchase_product')) {
-                // DataTable exists but not in global variable
-                purchaseProductTable = $('#purchase_product').DataTable();
-                purchaseProductTable.clear().draw();
-            }
+            clearPurchaseProductTable();
             updateFooter();
         }
 
-        // Initialize DataTable and ALL purchase page functionality
+        // Initialize purchase page (no DataTables on #purchase_product — LIFO DOM order)
         $(document).ready(function() {
             // Only run on add/edit purchase page, not on list page
             if (!$('#purchase_product').length) {
@@ -2507,29 +2527,16 @@
                 return;
             }
 
-            // CONSOLIDATED INITIALIZATION - Run only once on page load
+            // Destroy accidental DataTables instance from global .datatable init
+            if ($.fn.DataTable.isDataTable('#purchase_product')) {
+                $('#purchase_product').DataTable().destroy(false);
+            }
+            purchaseProductTable = null;
+            cleanupPurchaseTablePlaceholders();
+
             console.log('🚀 Initializing Purchase Page...');
 
-            // 1. Initialize DataTable
-            if (!$.fn.DataTable.isDataTable('#purchase_product')) {
-                purchaseProductTable = $('#purchase_product').DataTable({
-                    "pageLength": 10,
-                    "ordering": true,
-                    "searching": false,
-                    "info": true,
-                    "lengthChange": true,
-                    "scrollX": true,
-                    "scrollCollapse": true,
-                    "autoWidth": false
-                });
-                console.log('✅ DataTable initialized');
-            } else {
-                // DataTable already initialized - just get the instance
-                purchaseProductTable = $('#purchase_product').DataTable();
-                console.log('✅ DataTable already initialized - using existing instance');
-            }
-
-            // 2. Fetch locations (only once)
+            // 1. Fetch locations (only once)
             fetchLocations();
 
             // 3. Initialize autocomplete (only once)
@@ -2737,13 +2744,7 @@
             const quantity = $row.find('.purchase-quantity').val() || '0';
             const productId = $row.data('id');
 
-            // CRITICAL FIX: Remove from DataTable (not just DOM)
-            if (purchaseProductTable && $.fn.DataTable.isDataTable('#purchase_product')) {
-                purchaseProductTable.row($row).remove().draw();
-            } else {
-                // Fallback: just remove from DOM
-                $row.remove();
-            }
+            removePurchaseLineRow($row);
 
             // CRITICAL FIX: Clean up ALL tracking arrays to prevent re-adding
             const originalPendingLength = pendingImeiProducts.length;
@@ -2762,7 +2763,7 @@
 
             console.log(`🗑️ Removed from pendingImeiProducts: ${originalPendingLength} -> ${pendingImeiProducts.length}`);
 
-            // Call updateFooter after a short delay to ensure DataTable has redrawn
+            // Call updateFooter after a short delay
             setTimeout(function() {
                 updateFooter();
             }, 50);

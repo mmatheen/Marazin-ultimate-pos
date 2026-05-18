@@ -3164,8 +3164,8 @@
 
             const newRow = `
             <tr data-id="${product.id}" data-imei-enabled="${product.is_imei_or_serial_no || 0}">
-                <td>${product.id}</td>
-                <td>${product.product_name} <br><small>Stock: ${currentStock}</small>${product.is_imei_or_serial_no ? ' <span class="badge badge-info">IMEI</span>' : ''}</td>
+                <td class="line-counter"></td>
+                <td>${product.name || product.product_name || ''} <br><small>Stock: ${product.quantity ?? currentStock}</small>${product.is_imei_or_serial_no ? ' <span class="badge badge-info">IMEI</span>' : ''}</td>
                 <td>
                     <input type="number" class="form-control purchase-quantity" value="${prices.quantity || 1}" min="${quantityMin}" step="${quantityStep}" pattern="${quantityPattern}" ${allowDecimal ? '' : 'oninput="this.value = this.value.replace(/[^0-9]/g, \'\')"'}>
                 </td>
@@ -3198,16 +3198,26 @@
         `;
 
             try {
+                if (!isEditing && typeof window.trackPurchaseLineAdd === 'function') {
+                    window.trackPurchaseLineAdd(product.id);
+                }
+
                 const $newRow = $(newRow);
 
-                if (isDataTable) {
-                    // Add to DataTable
-                    const addedRow = table.row.add($newRow).draw();
-                    // Last added = first row (like POS): move new row to top
-                    $(addedRow.node()).prependTo('#purchase_product tbody');
+                // Edit load: append supplier list order (#1 top). Add purchase: prepend LIFO.
+                if (isEditing) {
+                    if (typeof window.appendPurchaseLineRow === 'function') {
+                        window.appendPurchaseLineRow($newRow);
+                    } else {
+                        $('#purchase_product tbody').append($newRow);
+                    }
+                } else if (typeof window.prependPurchaseLineRow === 'function') {
+                    window.prependPurchaseLineRow($newRow);
+                } else {
+                    $('#purchase_product tbody').prepend($newRow);
+                }
 
-                    // Get the actual DOM node after DataTables processes it
-                    const $actualRow = $(addedRow.node());
+                const $actualRow = $('#purchase_product tbody tr[data-id="' + product.id + '"]').last();
 
                     // Attach event listeners to the actual DOM node's inputs for real-time updates
                     $actualRow.find('.purchase-quantity, .free-quantity, .discount-percent, .product-price, .unit-cost').on('input', function() {
@@ -3227,24 +3237,6 @@
                     $actualRow.find('.free-quantity').trigger('input');
                     $actualRow.find('.purchase-quantity').trigger('input');
                     $actualRow.find('.free-quantity').trigger('input');
-                } else {
-                    // Add to regular table — last added = first row (like POS)
-                    $('#purchase_product tbody').prepend($newRow);
-
-                    // Attach event listeners for regular table
-                    $newRow.find('.purchase-quantity, .free-quantity, .discount-percent, .product-price, .unit-cost').on('input', function() {
-                        if (typeof window.updateRow === 'function') {
-                            window.updateRow($newRow);
-                        }
-                        if (typeof window.updateFooter === 'function') {
-                            window.updateFooter();
-                        }
-                    });
-
-                    // Trigger initial calculation
-                    $newRow.find('.purchase-quantity').trigger('input');
-                }
-
                 // Call updateFooter to ensure totals are correct after adding
                 if (typeof window.updateFooter === 'function') {
                     setTimeout(function() {

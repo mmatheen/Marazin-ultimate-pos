@@ -181,7 +181,7 @@
         $('[data-toggle="tooltip"]').tooltip();
     }
     if ($(".datatable").length > 0) {
-        $(".datatable").DataTable({ bFilter: false });
+        $(".datatable").not("[data-dt-disable]").DataTable({ bFilter: false });
     }
     if ($(".datatables").length > 0) {
         $(".datatables").DataTable({ bFilter: true });
