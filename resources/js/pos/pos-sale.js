@@ -1449,6 +1449,11 @@ function resetForm() {
     // Reset shipping data
     clearShippingData();
 
+    const saleNotesDesktop = document.getElementById('sale-notes-textarea');
+    const saleNotesMobile = document.getElementById('sale-notes-textarea-mobile');
+    if (saleNotesDesktop) saleNotesDesktop.value = '';
+    if (saleNotesMobile) saleNotesMobile.value = '';
+
     if (PosCart.updateTotals) PosCart.updateTotals();
 
     const cashBtn = document.getElementById('cashButton');
